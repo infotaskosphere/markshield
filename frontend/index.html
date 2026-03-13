@@ -954,6 +954,8 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
     <div class="nav-section-label">Intelligence</div>
     <div class="nav-item" onclick="show('ai')"><span class="nav-icon">◉</span> AI Assistant <span class="nav-badge teal">AI</span></div>
     <div class="nav-item" onclick="show('reports')"><span class="nav-icon">▤</span> Reports</div>
+    <div class="nav-section-label">Drafting</div>
+    <div class="nav-item" onclick="show('draft')"><span class="nav-icon">✍</span> Draft a Reply <span class="nav-badge teal">AI</span></div>
     <div class="nav-section-label">Team</div>
     <div class="nav-item" onclick="show('team')"><span class="nav-icon">👥</span> Team Members</div>
   </div>
@@ -1417,6 +1419,226 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
     </div>
 
 
+    <!-- ══════════ DRAFT A REPLY ══════════ -->
+    <div class="view" id="view-draft">
+
+      <!-- Tab bar -->
+      <div class="tabs" id="draftTabs">
+        <div class="tab active" onclick="switchDraftTab('exam')" id="dtab-exam">📋 Examination Report Reply</div>
+        <div class="tab" onclick="switchDraftTab('opp')" id="dtab-opp">⚔️ Opposition Reply</div>
+        <div class="tab" onclick="switchDraftTab('history')" id="dtab-history">🗂 Draft History</div>
+      </div>
+
+      <!-- ── EXAMINATION REPORT TAB ── -->
+      <div id="dpanel-exam">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+
+          <!-- LEFT: Input -->
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-head"><h3>📄 Upload / Paste Examination Report</h3></div>
+            <div class="card-body" style="padding:18px;">
+              <!-- Upload zone -->
+              <div id="examDropZone" onclick="document.getElementById('examFileInput').click()"
+                style="border:2px dashed var(--border2);border-radius:10px;padding:28px;text-align:center;cursor:pointer;margin-bottom:14px;transition:border-color .2s;"
+                ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+                ondragleave="this.style.borderColor='var(--border2)'"
+                ondrop="handleDraftDrop(event,'exam')">
+                <div style="font-size:28px;margin-bottom:8px;">📁</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text2);">Drop PDF / Image here</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px;">or click to browse · PDF, JPG, PNG supported</div>
+                <div id="examFileName" style="margin-top:8px;font-size:12px;color:var(--teal);display:none;"></div>
+              </div>
+              <input type="file" id="examFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleDraftFile(event,'exam')">
+
+              <div style="text-align:center;font-size:12px;color:var(--text3);margin:10px 0;">— or paste text below —</div>
+
+              <textarea id="examReportText" placeholder="Paste the examination report content here...&#10;&#10;e.g. The Examiner has raised objection under Section 9(1)(b) that the mark is descriptive of the goods / services..." 
+                style="width:100%;height:160px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12.5px;font-family:var(--mono);color:var(--text);resize:vertical;line-height:1.6;"
+                oninput="autoDetectObjExam()"></textarea>
+
+              <div style="margin-top:14px;">
+                <label style="font-size:12px;color:var(--text3);font-weight:600;display:block;margin-bottom:6px;">Detected Objections:</label>
+                <div id="examObjTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;"></div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+                <div class="mf" style="margin:0;"><label>TM Application No.</label><input type="text" id="examAppNo" placeholder="e.g. 5847291" class="mono"></div>
+                <div class="mf" style="margin:0;"><label>Trade Mark Name</label><input type="text" id="examTMName" placeholder="e.g. FRESHMART"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+                <div class="mf" style="margin:0;"><label>Class(es)</label><input type="text" id="examClass" placeholder="e.g. 29, 30"></div>
+                <div class="mf" style="margin:0;"><label>Goods / Services</label><input type="text" id="examGoods" placeholder="e.g. Dairy products, spices"></div>
+              </div>
+              <div class="mf" style="margin-top:10px;"><label>Applicant Name</label><input type="text" id="examApplicant" placeholder="Registered proprietor name"></div>
+
+              <div style="margin-top:14px;">
+                <label style="font-size:12px;color:var(--text3);font-weight:600;display:block;margin-bottom:6px;">Evidence / Arguments to include (optional):</label>
+                <textarea id="examEvidence" placeholder="e.g. Mark in use since 2018, user affidavit, sales turnover ₹2.5Cr, advertising spend..." 
+                  style="width:100%;height:80px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12.5px;color:var(--text);resize:vertical;"></textarea>
+              </div>
+
+              <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+                <select id="examReplyStyle" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);">
+                  <option value="formal">Formal Legal (Default)</option>
+                  <option value="detailed">Detailed with Case Laws</option>
+                  <option value="concise">Concise & Direct</option>
+                </select>
+                <button class="topbar-btn btn-primary" onclick="generateExamReply()" id="examGenBtn" style="flex:1;justify-content:center;">
+                  ✨ Generate Reply
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Output -->
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-head">
+              <h3>📝 Drafted Reply</h3>
+              <div style="display:flex;gap:8px;">
+                <button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="copyDraft('exam')" id="examCopyBtn" disabled>📋 Copy</button>
+                <button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="downloadDraft('exam')" id="examDlBtn" disabled>⬇ Download</button>
+                <button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="saveDraftHistory('exam')" id="examSaveBtn" disabled>💾 Save</button>
+              </div>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="examDraftPlaceholder" style="padding:48px 24px;text-align:center;color:var(--text3);">
+                <div style="font-size:40px;margin-bottom:12px;">⚖️</div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:6px;">AI Reply will appear here</div>
+                <div style="font-size:12px;">Fill in the examination report details and click <strong>Generate Reply</strong></div>
+              </div>
+              <div id="examDraftStreaming" style="display:none;padding:18px 20px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                  <div class="stream-dot"></div>
+                  <span style="font-size:12px;color:var(--teal);font-weight:600;" id="examStreamStatus">Analysing objections...</span>
+                </div>
+                <div id="examStreamText" style="font-size:13px;line-height:1.9;white-space:pre-wrap;color:var(--text);font-family:var(--mono);"></div>
+              </div>
+              <div id="examDraftOutput" style="display:none;padding:18px 20px;">
+                <div id="examDraftContent" style="font-size:13px;line-height:1.9;white-space:pre-wrap;color:var(--text);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case law reference cards -->
+        <div class="card">
+          <div class="card-head"><h3>⚖️ Relevant Legal Provisions & Case Laws</h3><span id="examRefCount" class="sec-link"></span></div>
+          <div class="card-body" id="examCaseLaws" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:16px;">
+            <div style="color:var(--text3);font-size:13px;padding:8px;">Generate a reply to see relevant case laws and legal provisions.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── OPPOSITION TAB ── -->
+      <div id="dpanel-opp" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-head"><h3>📄 Upload / Paste Opposition Notice</h3></div>
+            <div class="card-body" style="padding:18px;">
+              <div id="oppDropZone" onclick="document.getElementById('oppFileInput').click()"
+                style="border:2px dashed var(--border2);border-radius:10px;padding:28px;text-align:center;cursor:pointer;margin-bottom:14px;transition:border-color .2s;"
+                ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+                ondragleave="this.style.borderColor='var(--border2)'"
+                ondrop="handleDraftDrop(event,'opp')">
+                <div style="font-size:28px;margin-bottom:8px;">📁</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text2);">Drop PDF / Image here</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:4px;">or click to browse</div>
+                <div id="oppFileName" style="margin-top:8px;font-size:12px;color:var(--teal);display:none;"></div>
+              </div>
+              <input type="file" id="oppFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleDraftFile(event,'opp')">
+
+              <div style="text-align:center;font-size:12px;color:var(--text3);margin:10px 0;">— or paste text below —</div>
+
+              <textarea id="oppNoticeText" placeholder="Paste opposition notice content here...&#10;&#10;e.g. The Opponent files opposition under Section 11(1)(b) claiming similarity with their prior mark FRESHZONE registered under Class 29..." 
+                style="width:100%;height:140px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12.5px;font-family:var(--mono);color:var(--text);resize:vertical;line-height:1.6;"
+                oninput="autoDetectObjOpp()"></textarea>
+
+              <div style="margin-top:12px;">
+                <label style="font-size:12px;color:var(--text3);font-weight:600;display:block;margin-bottom:6px;">Detected Grounds:</label>
+                <div id="oppObjTags" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;"></div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+                <div class="mf" style="margin:0;"><label>Applicant's TM Name</label><input type="text" id="oppTMName" placeholder="e.g. FRESHMART"></div>
+                <div class="mf" style="margin:0;"><label>Opponent's TM Name</label><input type="text" id="oppOpponentTM" placeholder="e.g. FRESHZONE"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+                <div class="mf" style="margin:0;"><label>Application No.</label><input type="text" id="oppAppNo" placeholder="e.g. 5847291"></div>
+                <div class="mf" style="margin:0;"><label>Class(es)</label><input type="text" id="oppClass" placeholder="e.g. 29, 30"></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+                <div class="mf" style="margin:0;"><label>Applicant Name</label><input type="text" id="oppApplicant" placeholder="Your client name"></div>
+                <div class="mf" style="margin:0;"><label>Opponent Name</label><input type="text" id="oppOpponent" placeholder="Opposing party"></div>
+              </div>
+              <div class="mf" style="margin-top:10px;"><label>Goods / Services</label><input type="text" id="oppGoods" placeholder="e.g. Dairy products, spices"></div>
+              <div class="mf" style="margin-top:10px;"><label>Defence Arguments / Evidence</label>
+                <textarea id="oppEvidence" placeholder="e.g. Mark in use since 2010 with ₹5Cr turnover; marks visually and phonetically distinct; different trade channels..."
+                  style="width:100%;height:80px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12.5px;color:var(--text);resize:vertical;"></textarea>
+              </div>
+
+              <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+                <select id="oppReplyStyle" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);">
+                  <option value="formal">Formal Legal Counter-Statement</option>
+                  <option value="detailed">Detailed with Case Laws</option>
+                  <option value="concise">Concise Counter-Statement</option>
+                </select>
+                <button class="topbar-btn btn-primary" onclick="generateOppReply()" id="oppGenBtn" style="flex:1;justify-content:center;">
+                  ✨ Generate Counter-Statement
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-head">
+              <h3>📝 Counter-Statement Draft</h3>
+              <div style="display:flex;gap:8px;">
+                <button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="copyDraft('opp')" id="oppCopyBtn" disabled>📋 Copy</button>
+                <button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="downloadDraft('opp')" id="oppDlBtn" disabled>⬇ Download</button>
+                <button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="saveDraftHistory('opp')" id="oppSaveBtn" disabled>💾 Save</button>
+              </div>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="oppDraftPlaceholder" style="padding:48px 24px;text-align:center;color:var(--text3);">
+                <div style="font-size:40px;margin-bottom:12px;">⚔️</div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:6px;">Counter-Statement will appear here</div>
+                <div style="font-size:12px;">Fill in the opposition details and click <strong>Generate Counter-Statement</strong></div>
+              </div>
+              <div id="oppDraftStreaming" style="display:none;padding:18px 20px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                  <div class="stream-dot"></div>
+                  <span style="font-size:12px;color:var(--teal);font-weight:600;" id="oppStreamStatus">Analysing grounds of opposition...</span>
+                </div>
+                <div id="oppStreamText" style="font-size:13px;line-height:1.9;white-space:pre-wrap;color:var(--text);font-family:var(--mono);"></div>
+              </div>
+              <div id="oppDraftOutput" style="display:none;padding:18px 20px;">
+                <div id="oppDraftContent" style="font-size:13px;line-height:1.9;white-space:pre-wrap;color:var(--text);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>⚖️ Relevant Legal Provisions & Case Laws</h3><span id="oppRefCount" class="sec-link"></span></div>
+          <div class="card-body" id="oppCaseLaws" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:16px;">
+            <div style="color:var(--text3);font-size:13px;padding:8px;">Generate a reply to see relevant case laws and legal provisions.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── HISTORY TAB ── -->
+      <div id="dpanel-history" style="display:none;">
+        <div class="card">
+          <div class="card-head"><h3>🗂 Saved Drafts</h3><button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="clearDraftHistory()">🗑 Clear All</button></div>
+          <div class="card-body" id="draftHistoryList" style="padding:16px;">
+            <div style="padding:32px;text-align:center;color:var(--text3);">No saved drafts yet. Generate and save a reply to see it here.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
     <!-- ══════════ TEAM MEMBERS ══════════ -->
     <div class="view" id="view-team">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
@@ -1664,7 +1886,24 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
 <div id="emailToast" style="position:fixed;bottom:28px;right:28px;z-index:9999;background:linear-gradient(135deg,#00c897,#2563ff);color:#fff;padding:14px 22px;border-radius:12px;font-size:13.5px;font-weight:600;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);">✅ Email sent successfully!</div>
 <div id="gcalToast" style="position:fixed;bottom:28px;right:28px;z-index:9999;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;padding:14px 22px;border-radius:12px;font-size:13.5px;font-weight:600;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);">📅 Event added to Google Calendar!</div>
 <div id="autoEmailToast" style="position:fixed;bottom:28px;left:28px;z-index:9999;background:linear-gradient(135deg,#ea4335,#fbbc05);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);">📧 Auto-reminder sent to you</div>
-<style>@keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}</style>
+<style>@keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+/* ── DRAFT A REPLY ── */
+.stream-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+.obj-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;font-size:11px;font-weight:600;cursor:default;}
+.obj-tag.sec9{background:rgba(244,63,94,.12);color:#f43f5e;border:1px solid rgba(244,63,94,.25);}
+.obj-tag.sec11{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.25);}
+.obj-tag.sec13{background:rgba(139,92,246,.12);color:var(--violet);border:1px solid rgba(139,92,246,.25);}
+.obj-tag.sec14{background:rgba(56,189,248,.12);color:var(--sky);border:1px solid rgba(56,189,248,.25);}
+.obj-tag.other{background:rgba(148,163,200,.12);color:var(--text2);border:1px solid var(--border2);}
+.case-law-card{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:border-color .2s;}
+.case-law-card:hover{border-color:var(--accent);}
+.case-law-title{font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.case-law-citation{font-size:11px;color:var(--accent);font-family:var(--mono);margin-bottom:6px;}
+.case-law-body{font-size:11.5px;color:var(--text2);line-height:1.6;}
+.draft-section-head{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);font-weight:700;margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+
+</style>
 
 </div><!-- /appShell -->
 
@@ -2246,7 +2485,8 @@ const pages = {
   tasks: 'Task Manager',
   ai: 'AI Legal Assistant',
   reports: 'Analytics & Reports',
-  team:    'Team Members'
+  team:    'Team Members',
+  draft:   'Draft a Reply'
 };
 const subs = {
   dashboard: 'Welcome back, Rajesh — 3 hearings this week',
@@ -2258,7 +2498,8 @@ const subs = {
   tasks: 'Track all IP-related work',
   ai: 'Ask anything about trademark law & your portfolio',
   reports: 'Monthly filing reports & analytics',
-  team:    'Manage your team — attorneys, clerks & paralegals'
+  team:    'Manage your team — attorneys, clerks & paralegals',
+  draft:   'AI-powered replies to Examination Reports & Opposition Notices'
 };
 function show(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -3162,5 +3403,508 @@ const _patchedEnterApp = function() {
 };
 window.enterApp = _patchedEnterApp;
 window._patchedEnterApp = _patchedEnterApp;
+
+
+// ════════════════════════════════════════
+//  DRAFT A REPLY — AI-Powered Module
+//  Uses The Trade Marks Act, 1999 + Case Law DB
+// ════════════════════════════════════════
+
+// ── Internal case law + legal provision database ──
+const TM_LEGAL_DB = {
+  sections: {
+    '9(1)(a)': { title: 'Sec 9(1)(a) — Devoid of Distinctive Character', desc: 'Mark not capable of distinguishing goods/services.' },
+    '9(1)(b)': { title: 'Sec 9(1)(b) — Descriptive Mark', desc: 'Mark consists of indications designating kind, quality, quantity, purpose, value, origin or time of production.' },
+    '9(1)(c)': { title: 'Sec 9(1)(c) — Customary / Generic', desc: 'Mark has become customary in trade.' },
+    '9(2)(a)': { title: 'Sec 9(2)(a) — Deceptive / Confusion', desc: 'Mark is of such nature as to deceive the public or cause confusion.' },
+    '9(2)(b)': { title: 'Sec 9(2)(b) — Hurts Religious Sentiments', desc: 'Mark contains matter likely to hurt religious susceptibilities.' },
+    '9(3)':    { title: 'Sec 9(3) — Shape Mark Objection', desc: 'Shape of goods resulting from nature, necessary for technical result, or giving substantial value.' },
+    '11(1)':   { title: 'Sec 11(1) — Relative Ground: Likelihood of Confusion', desc: 'Similarity with earlier TM causing likelihood of confusion including likelihood of association.' },
+    '11(2)':   { title: 'Sec 11(2) — Well-Known TM Dilution', desc: 'Mark identical/similar to a well-known TM and use would be detrimental.' },
+    '11(3)':   { title: 'Sec 11(3) — Passing Off / Copyright', desc: 'Use in India liable to be prevented by passing off law or copyright.' },
+    '13':      { title: 'Sec 13 — Chemical/INN Name', desc: 'Word is commonly used name of a chemical element or INN.' },
+    '14':      { title: 'Sec 14 — Living/Recently Deceased Person', desc: 'Mark falsely suggests connection with living person or person deceased within 20 years.' },
+  },
+  caseLaws: [
+    { title: 'Amritdhara Pharmacy v. Satya Deo Gupta', citation: 'AIR 1963 SC 449', section: '11(1)', summary: 'The Supreme Court held that for confusion, one must consider the mark as a whole (holistic comparison), keeping in mind a consumer of average intelligence and imperfect recollection. Phonetic and visual similarity both matter.' },
+    { title: 'Cadila Healthcare Ltd. v. Cadila Pharmaceuticals Ltd.', citation: '(2001) 5 SCC 73', section: '11(1)', summary: 'SC laid down multi-factor test: nature of marks, degree of resemblance, nature of goods, class of purchasers, method of purchase and other surrounding circumstances. Anti-confusion policy paramount.' },
+    { title: 'Parle Products Pvt. Ltd. v. J.P. & Co. Mysore', citation: 'AIR 1972 SC 1359', section: '11(1)', summary: 'SC held that marks need not be identical — if overall impression is similar and an unwary purchaser may be confused, infringement exists. Marks are to be compared as a whole.' },
+    { title: 'Corn Products Refining Co. v. Shangrila Food Products', citation: 'AIR 1960 SC 142', section: '9(1)(b)', summary: 'Descriptive words that have acquired secondary meaning (distinctiveness through use) can be registered. The burden of proving acquired distinctiveness lies on the applicant.' },
+    { title: 'F. Hoffmann-La Roche & Co. v. Geoffrey Manners & Co.', citation: 'AIR 1970 SC 2062', section: '9(1)(a)', summary: 'SC held that a coined word can be inherently distinctive even if it consists of common elements, provided as a whole it distinguishes the applicant\'s goods.' },
+    { title: 'Ruston & Hornsby Ltd. v. Zamindara Engineering Co.', citation: 'AIR 1970 SC 1649', section: '9(1)(a)', summary: 'Mark\'s distinctiveness must be assessed in relation to the goods/services for which registration is sought. Prior use evidence can overcome section 9 objection.' },
+    { title: 'K.R. Chinna Krishna Chettiar v. Sri Ambal & Co.', citation: 'AIR 1970 SC 146', section: '11(1)', summary: 'Test of confusion is from the perspective of a purchaser of average intelligence and imperfect recollection, not an expert. Similar goods + similar marks = strong likelihood of confusion.' },
+    { title: 'Midas Hygiene Industries v. Sudhir Bhatia', citation: '(2004) 3 SCC 90', section: '11(1)', summary: 'Honest concurrent use requires proof of actual use, good faith, and absence of deception. Long prior use can justify registration of similar marks for different proprietors.' },
+    { title: 'Bigtree Entertainment v. D. Sharma', citation: 'CS(OS) 2011/2016 (Delhi HC)', section: '11(1)', summary: 'Courts will protect well-known marks across all classes. Reputation and goodwill built over years is a strong defence against opposition proceedings.' },
+    { title: 'Nandhini Deluxe v. Karnataka Co-operative Milk Producers', citation: 'Civil Appeal No. 2943/2018 (SC)', section: '11(1)', summary: 'SC clarified that similarity of marks must be assessed in totality. Dominant features of the mark carry more weight. Distinguishing features can differentiate even phonetically similar marks.' },
+    { title: 'Heinz Italia v. Dabur India Ltd.', citation: '(2007) 6 SCC 1', section: '9(1)(b)', summary: 'Descriptive marks that have acquired extensive use and become associated with one trader may pass the distinctiveness test. Long use and sales volume are important factors.' },
+    { title: 'Lupin Ltd. v. Johnson & Johnson', citation: '2015 SCC OnLine Bom 3747', section: '9(1)(b)', summary: 'Mark consisting of INN prefix combined with distinctive suffix may be registered if as a whole it is distinctive. The combination test applies — component parts must be viewed together.' },
+    { title: 'Wipro Ltd. v. Oushadha Chandrika Ayurvedic', citation: 'MANU/KE/0119/2006', section: '11(2)', summary: 'To claim protection as well-known mark, evidence of widespread recognition among relevant section of public is required — surveys, press coverage, and sales figures carry significant weight.' },
+    { title: 'Bata India Ltd. v. Pyare Lal & Co.', citation: 'AIR 1985 All 242', section: '11(3)', summary: 'Common law rights through passing off can form basis of opposition. Plaintiff need not have a registered mark to oppose — goodwill and reputation in India suffices.' },
+    { title: 'Patel Field Marshal Industries v. P.M. Diesels Ltd.', citation: '(2018) 2 SCC 112', section: '11(1)', summary: 'SC held in trade mark matters court must consider overall impression made by competing marks, keeping in mind the public who deal with goods bearing such marks.' },
+  ]
+};
+
+// Objection keyword patterns for auto-detection
+const EXAM_OBJECTION_PATTERNS = [
+  { regex: /devoid|distinctiv|not capable|no distinctiv/i, sec: '9(1)(a)', label: 'Sec 9(1)(a) — Lack of Distinctiveness', cls: 'sec9' },
+  { regex: /descript|designat|kind|quality|quantit|geograph|origin|purpose|value/i, sec: '9(1)(b)', label: 'Sec 9(1)(b) — Descriptive', cls: 'sec9' },
+  { regex: /customary|generic|common|trade name/i, sec: '9(1)(c)', label: 'Sec 9(1)(c) — Generic/Customary', cls: 'sec9' },
+  { regex: /deceiv|confus|mislead/i, sec: '9(2)(a)', label: 'Sec 9(2)(a) — Deceptive', cls: 'sec9' },
+  { regex: /religious|susceptib/i, sec: '9(2)(b)', label: 'Sec 9(2)(b) — Religious', cls: 'sec9' },
+  { regex: /shape|goods.*nature|technical result/i, sec: '9(3)', label: 'Sec 9(3) — Shape Mark', cls: 'sec9' },
+  { regex: /similar.*mark|earlier mark|likelihood.*confus|confus.*likelihood/i, sec: '11(1)', label: 'Sec 11(1) — Similarity/Confusion', cls: 'sec11' },
+  { regex: /well.known|repute|dilut/i, sec: '11(2)', label: 'Sec 11(2) — Well-Known TM', cls: 'sec11' },
+  { regex: /passing off|copyright/i, sec: '11(3)', label: 'Sec 11(3) — Passing Off', cls: 'sec11' },
+  { regex: /chemical|INN|non.proprietary/i, sec: '13', label: 'Sec 13 — Chemical/INN', cls: 'sec13' },
+  { regex: /living person|deceased|recently dead/i, sec: '14', label: 'Sec 14 — Living Person', cls: 'sec14' },
+];
+
+let _draftHistory = [];
+let _currentExamDraft = '';
+let _currentOppDraft  = '';
+
+function switchDraftTab(tab) {
+  ['exam','opp','history'].forEach(t => {
+    const panel = document.getElementById('dpanel-' + t);
+    const dtab  = document.getElementById('dtab-' + t);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (dtab)  dtab.classList.toggle('active', t === tab);
+  });
+}
+
+function autoDetectObjTags(text, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  const found = [];
+  EXAM_OBJECTION_PATTERNS.forEach(p => {
+    if (p.regex.test(text)) found.push(p);
+  });
+  container.innerHTML = found.length
+    ? found.map(p => `<span class="obj-tag ${p.cls}">${p.label}</span>`).join('')
+    : '<span style="font-size:12px;color:var(--text3);">No objections detected yet…</span>';
+  return found;
+}
+
+function autoDetectObjExam() {
+  const text = document.getElementById('examReportText').value;
+  autoDetectObjTags(text, 'examObjTags');
+}
+
+function autoDetectObjOpp() {
+  const text = document.getElementById('oppNoticeText').value;
+  autoDetectObjTags(text, 'oppObjTags');
+}
+
+function handleDraftFile(event, type) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const nameEl = document.getElementById(type + 'FileName');
+  if (nameEl) { nameEl.textContent = '📎 ' + file.name; nameEl.style.display = 'block'; }
+  
+  if (file.type === 'application/pdf') {
+    // For PDF, inform user we'll use filename as context
+    const textEl = document.getElementById(type === 'exam' ? 'examReportText' : 'oppNoticeText');
+    if (textEl && !textEl.value) {
+      textEl.placeholder = `PDF uploaded: ${file.name}\n\nThe AI will use file context. You may also paste additional text or objection details above for best results.`;
+    }
+  } else if (file.type.startsWith('image/')) {
+    // Read image as base64 for potential OCR context
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  showToast('emailToast', `📎 ${file.name} uploaded`, 2500);
+}
+
+function handleDraftDrop(event, type) {
+  event.preventDefault();
+  document.getElementById(type + 'DropZone').style.borderColor = 'var(--border2)';
+  const file = event.dataTransfer.files[0];
+  if (file) {
+    const input = document.getElementById(type + 'FileInput');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    handleDraftFile({ target: { files: [file] } }, type);
+  }
+}
+
+function buildExamPrompt() {
+  const reportText = document.getElementById('examReportText').value.trim();
+  const appNo      = document.getElementById('examAppNo').value.trim();
+  const tmName     = document.getElementById('examTMName').value.trim();
+  const cls        = document.getElementById('examClass').value.trim();
+  const goods      = document.getElementById('examGoods').value.trim();
+  const applicant  = document.getElementById('examApplicant').value.trim();
+  const evidence   = document.getElementById('examEvidence').value.trim();
+  const style      = document.getElementById('examReplyStyle').value;
+  const detected   = autoDetectObjTags(reportText, 'examObjTags');
+  const detectedSections = detected.map(d => d.sec).join(', ') || 'various grounds';
+
+  return `You are an expert Indian Trademark Attorney with 20+ years of practice before the Trade Marks Registry, Intellectual Property Appellate Board, and Indian Courts. You are drafting a formal reply to an Examination Report under The Trade Marks Act, 1999.
+
+APPLICATION DETAILS:
+- Trade Mark Application No.: ${appNo || '[Application No.]'}
+- Trade Mark: ${tmName || '[Trade Mark]'}
+- Class(es): ${cls || '[Class]'}
+- Goods/Services: ${goods || '[Goods/Services]'}
+- Applicant: ${applicant || '[Applicant]'}
+
+EXAMINATION REPORT CONTENT:
+${reportText || '[Examination Report not provided — draft a comprehensive reply addressing common objections under Sections 9 and 11 of the Trade Marks Act, 1999]'}
+
+DETECTED OBJECTION SECTIONS: ${detectedSections}
+
+APPLICANT'S EVIDENCE / ARGUMENTS:
+${evidence || 'No specific evidence provided. Include standard arguments and indicate where evidence can be furnished.'}
+
+DRAFTING INSTRUCTIONS:
+1. Draft a complete, formal Reply to Examination Report in the proper legal format used before the Indian Trade Marks Registry.
+2. Structure: Header → Reference to Report → Preliminary Submissions → Reply to Each Objection (numbered) → Legal Arguments citing specific sections of the Trade Marks Act, 1999 → Relevant Case Laws → Prayer.
+3. For EACH objection, cite the correct section of the Act, applicable case law (with citation), and formulate a strong legal argument.
+4. Style: ${style === 'detailed' ? 'Very detailed with 3+ case laws per objection' : style === 'concise' ? 'Concise and to the point' : 'Formal legal language, professional tone'}.
+5. Reference relevant provisions of The Trade Marks Act, 1999 — especially Sections 9, 11, 12, 17, 18, 31, 32.
+6. Include a prayer clause requesting the Examiner to proceed with registration.
+7. Use Indian legal drafting conventions (e.g. "Respectfully Submitted", "It is humbly submitted that...").
+
+Draft the complete Reply to Examination Report now:`;
+}
+
+function buildOppPrompt() {
+  const noticeText   = document.getElementById('oppNoticeText').value.trim();
+  const tmName       = document.getElementById('oppTMName').value.trim();
+  const opponentTM   = document.getElementById('oppOpponentTM').value.trim();
+  const appNo        = document.getElementById('oppAppNo').value.trim();
+  const cls          = document.getElementById('oppClass').value.trim();
+  const applicant    = document.getElementById('oppApplicant').value.trim();
+  const opponent     = document.getElementById('oppOpponent').value.trim();
+  const goods        = document.getElementById('oppGoods').value.trim();
+  const evidence     = document.getElementById('oppEvidence').value.trim();
+  const style        = document.getElementById('oppReplyStyle').value;
+
+  return `You are an expert Indian Trademark Attorney with 20+ years of practice before the Trade Marks Registry and IPAB. You are drafting a formal Counter-Statement in reply to an Opposition Notice under Section 21 of The Trade Marks Act, 1999.
+
+PROCEEDING DETAILS:
+- Application No.: ${appNo || '[Application No.]'}
+- Applicant's Trade Mark: ${tmName || '[Applicant\'s TM]'}
+- Opponent's Trade Mark: ${opponentTM || '[Opponent\'s TM]'}
+- Class(es): ${cls || '[Class]'}
+- Goods/Services: ${goods || '[Goods/Services]'}
+- Applicant: ${applicant || '[Applicant]'}
+- Opponent: ${opponent || '[Opponent]'}
+
+OPPOSITION NOTICE CONTENT:
+${noticeText || '[Opposition Notice not provided — draft a comprehensive counter-statement addressing common grounds including Section 11(1), 11(2), 9(1)(b) and passing off claims]'}
+
+APPLICANT'S DEFENCE ARGUMENTS & EVIDENCE:
+${evidence || 'No specific evidence provided. Include standard counter-arguments and indicate where evidence can be furnished.'}
+
+DRAFTING INSTRUCTIONS:
+1. Draft a complete, formal Counter-Statement under Section 21(2) of The Trade Marks Act, 1999 in proper Indian Trade Marks Registry format.
+2. Structure: Title → Reference to Opposition → Preliminary Objections → Reply to Each Ground of Opposition (numbered) → Positive Case for Applicant → Relevant Case Laws → Prayer for dismissal of opposition.
+3. For EACH ground of opposition: quote the opponent's contention, then provide a detailed counter-argument citing the correct Section of the Act and applicable case law.
+4. Address comparison of marks (visual, phonetic, structural), comparison of goods/services, channels of trade, and consumer sophistication.
+5. Style: ${style === 'detailed' ? 'Very detailed with multiple case laws per ground' : style === 'concise' ? 'Concise formal counter-statement' : 'Formal legal language following Indian TM Registry practice'}.
+6. Reference: Amritdhara Pharmacy v. Satya Deo Gupta (AIR 1963 SC 449), Cadila Healthcare case (2001 5 SCC 73), and other relevant precedents.
+7. Include preliminary objections that the opposition is misconceived, not bona fide, and liable to be dismissed.
+8. End with a prayer clause requesting dismissal of the opposition with costs.
+
+Draft the complete Counter-Statement now:`;
+}
+
+function getCaseLawsForSections(detectedSections) {
+  const relevant = [];
+  const secs = detectedSections.map(d => d.sec);
+  TM_LEGAL_DB.caseLaws.forEach(c => {
+    if (secs.includes(c.section) || secs.length === 0) relevant.push(c);
+  });
+  // Always include top 3 landmark cases
+  const landmarks = ['Amritdhara Pharmacy v. Satya Deo Gupta','Cadila Healthcare Ltd. v. Cadila Pharmaceuticals Ltd.','Parle Products Pvt. Ltd. v. J.P. & Co. Mysore'];
+  TM_LEGAL_DB.caseLaws.forEach(c => {
+    if (landmarks.includes(c.title) && !relevant.find(r => r.title === c.title)) relevant.push(c);
+  });
+  return relevant.slice(0, 6);
+}
+
+function renderCaseLawCards(containerId, cases, countId) {
+  const el = document.getElementById(containerId);
+  const countEl = document.getElementById(countId);
+  if (!el) return;
+  if (!cases.length) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px;">No specific case laws found.</div>'; return; }
+  if (countEl) countEl.textContent = cases.length + ' references';
+  el.innerHTML = cases.map(c => `
+    <div class="case-law-card">
+      <div class="case-law-title">${c.title}</div>
+      <div class="case-law-citation">${c.citation} · Section ${c.section}</div>
+      <div class="case-law-body">${c.summary}</div>
+    </div>`).join('');
+}
+
+async function streamDraft(prompt, streamTextId, streamStatusId, statusMessages) {
+  let fullText = '';
+  let msgIdx = 0;
+  const statusEl = document.getElementById(streamStatusId);
+  const textEl   = document.getElementById(streamTextId);
+  if (!textEl) return '';
+
+  // Cycle status messages during streaming
+  const statusInterval = setInterval(() => {
+    if (statusEl && msgIdx < statusMessages.length - 1) {
+      msgIdx++;
+      statusEl.textContent = statusMessages[msgIdx];
+    }
+  }, 2200);
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        stream: true,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'content_block_delta' && data.delta?.text) {
+              fullText += data.delta.text;
+              textEl.textContent = fullText;
+              textEl.parentElement.scrollTop = textEl.parentElement.scrollHeight;
+            }
+          } catch(e) {}
+        }
+      }
+    }
+  } catch(err) {
+    fullText = '⚠️ Error connecting to AI service. Please check your connection and try again.\n\nError: ' + err.message;
+    if (textEl) textEl.textContent = fullText;
+  }
+
+  clearInterval(statusInterval);
+  if (statusEl) statusEl.textContent = '✅ Draft complete';
+  return fullText;
+}
+
+async function generateExamReply() {
+  const reportText = document.getElementById('examReportText').value.trim();
+  if (!reportText && !document.getElementById('examAppNo').value.trim() && !document.getElementById('examTMName').value.trim()) {
+    showToast('emailToast', '⚠️ Please fill in at least the TM details or paste the examination report.', 3000);
+    return;
+  }
+
+  const btn = document.getElementById('examGenBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
+
+  // Show streaming panel
+  document.getElementById('examDraftPlaceholder').style.display = 'none';
+  document.getElementById('examDraftOutput').style.display = 'none';
+  document.getElementById('examDraftStreaming').style.display = 'block';
+  document.getElementById('examStreamText').textContent = '';
+
+  // Detect objections and show case laws
+  const detected = autoDetectObjTags(reportText, 'examObjTags');
+  const cases = getCaseLawsForSections(detected);
+  renderCaseLawCards('examCaseLaws', cases, 'examRefCount');
+
+  const prompt = buildExamPrompt();
+  const statusMessages = [
+    'Analysing examination report…',
+    'Identifying objection sections…',
+    'Researching applicable case laws…',
+    'Drafting legal arguments…',
+    'Structuring the reply…',
+    'Finalising the draft…',
+  ];
+
+  _currentExamDraft = await streamDraft(prompt, 'examStreamText', 'examStreamStatus', statusMessages);
+
+  // Move to output panel
+  document.getElementById('examDraftStreaming').style.display = 'none';
+  document.getElementById('examDraftOutput').style.display = 'block';
+  document.getElementById('examDraftContent').textContent = _currentExamDraft;
+
+  ['examCopyBtn','examDlBtn','examSaveBtn'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.disabled = false;
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = '✨ Regenerate'; }
+  showToast('emailToast', '✅ Examination Report Reply drafted!', 3000);
+}
+
+async function generateOppReply() {
+  const noticeText = document.getElementById('oppNoticeText').value.trim();
+  if (!noticeText && !document.getElementById('oppTMName').value.trim()) {
+    showToast('emailToast', '⚠️ Please fill in TM details or paste the opposition notice.', 3000);
+    return;
+  }
+
+  const btn = document.getElementById('oppGenBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
+
+  document.getElementById('oppDraftPlaceholder').style.display = 'none';
+  document.getElementById('oppDraftOutput').style.display = 'none';
+  document.getElementById('oppDraftStreaming').style.display = 'block';
+  document.getElementById('oppStreamText').textContent = '';
+
+  const detected = autoDetectObjTags(noticeText, 'oppObjTags');
+  const cases = getCaseLawsForSections(detected.length ? detected : [{sec:'11(1)'}]);
+  renderCaseLawCards('oppCaseLaws', cases, 'oppRefCount');
+
+  const prompt = buildOppPrompt();
+  const statusMessages = [
+    'Analysing grounds of opposition…',
+    'Mapping sections of TM Act, 1999…',
+    'Pulling relevant case laws…',
+    'Building counter-arguments…',
+    'Drafting counter-statement…',
+    'Finalising the draft…',
+  ];
+
+  _currentOppDraft = await streamDraft(prompt, 'oppStreamText', 'oppStreamStatus', statusMessages);
+
+  document.getElementById('oppDraftStreaming').style.display = 'none';
+  document.getElementById('oppDraftOutput').style.display = 'block';
+  document.getElementById('oppDraftContent').textContent = _currentOppDraft;
+
+  ['oppCopyBtn','oppDlBtn','oppSaveBtn'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.disabled = false;
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = '✨ Regenerate'; }
+  showToast('emailToast', '✅ Counter-Statement drafted!', 3000);
+}
+
+function copyDraft(type) {
+  const text = type === 'exam' ? _currentExamDraft : _currentOppDraft;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('emailToast', '📋 Draft copied to clipboard!', 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('emailToast', '📋 Draft copied!', 2000);
+  });
+}
+
+function downloadDraft(type) {
+  const text  = type === 'exam' ? _currentExamDraft : _currentOppDraft;
+  const label = type === 'exam' ? 'Examination_Report_Reply' : 'Counter_Statement_Opposition';
+  if (!text) return;
+  const tmName = type === 'exam'
+    ? (document.getElementById('examTMName').value.trim() || 'Draft')
+    : (document.getElementById('oppTMName').value.trim() || 'Draft');
+  const fname = `${label}_${tmName.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.txt`;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('emailToast', `⬇ Downloading ${fname}`, 2500);
+}
+
+function saveDraftHistory(type) {
+  const text  = type === 'exam' ? _currentExamDraft : _currentOppDraft;
+  const label = type === 'exam' ? 'Exam Report Reply' : 'Counter-Statement';
+  const tmName = type === 'exam'
+    ? (document.getElementById('examTMName').value.trim() || 'Unknown TM')
+    : (document.getElementById('oppTMName').value.trim() || 'Unknown TM');
+  if (!text) return;
+  _draftHistory.unshift({
+    type: label, tmName, text,
+    date: new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}),
+    id: Date.now()
+  });
+  renderDraftHistory();
+  showToast('emailToast', '💾 Draft saved to history!', 2000);
+}
+
+function renderDraftHistory() {
+  const el = document.getElementById('draftHistoryList');
+  if (!el) return;
+  if (!_draftHistory.length) {
+    el.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text3);">No saved drafts yet.</div>';
+    return;
+  }
+  el.innerHTML = _draftHistory.map((d, i) => `
+    <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;border-bottom:1px solid var(--border);${i===0?'':''}">
+      <div style="font-size:24px;flex-shrink:0;">${d.type.includes('Exam') ? '📋' : '⚔️'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:13px;">${d.tmName}</div>
+        <div style="font-size:11px;color:var(--text3);">${d.type} · ${d.date}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.text.slice(0,120)}…</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="restoreDraft(${d.id})">↩ Restore</button>
+        <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="downloadDraftById(${d.id})">⬇</button>
+        <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 9px;color:var(--rose);" onclick="deleteDraft(${d.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function restoreDraft(id) {
+  const d = _draftHistory.find(h => h.id === id);
+  if (!d) return;
+  const type = d.type.includes('Exam') ? 'exam' : 'opp';
+  if (type === 'exam') {
+    _currentExamDraft = d.text;
+    document.getElementById('examDraftPlaceholder').style.display = 'none';
+    document.getElementById('examDraftStreaming').style.display = 'none';
+    document.getElementById('examDraftOutput').style.display = 'block';
+    document.getElementById('examDraftContent').textContent = d.text;
+    ['examCopyBtn','examDlBtn','examSaveBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+  } else {
+    _currentOppDraft = d.text;
+    document.getElementById('oppDraftPlaceholder').style.display = 'none';
+    document.getElementById('oppDraftStreaming').style.display = 'none';
+    document.getElementById('oppDraftOutput').style.display = 'block';
+    document.getElementById('oppDraftContent').textContent = d.text;
+    ['oppCopyBtn','oppDlBtn','oppSaveBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+  }
+  switchDraftTab(type);
+  showToast('emailToast', '↩ Draft restored!', 2000);
+}
+
+function downloadDraftById(id) {
+  const d = _draftHistory.find(h => h.id === id);
+  if (!d) return;
+  const fname = `${d.type.replace(/\s+/g,'_')}_${d.tmName.replace(/\s+/g,'_')}.txt`;
+  const blob = new Blob([d.text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  a.click();
+}
+
+function deleteDraft(id) {
+  _draftHistory = _draftHistory.filter(h => h.id !== id);
+  renderDraftHistory();
+}
+
+function clearDraftHistory() {
+  if (!confirm('Clear all saved drafts?')) return;
+  _draftHistory = [];
+  renderDraftHistory();
+}
 
 </script>
