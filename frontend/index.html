@@ -924,6 +924,8 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
     <div class="nav-section-label">Intelligence</div>
     <div class="nav-item" onclick="show('ai')"><span class="nav-icon">◉</span> AI Assistant <span class="nav-badge teal">AI</span></div>
     <div class="nav-item" onclick="show('reports')"><span class="nav-icon">▤</span> Reports</div>
+    <div class="nav-section-label">Team</div>
+    <div class="nav-item" onclick="show('team')"><span class="nav-icon">👥</span> Team Members</div>
   </div>
   <div class="sidebar-footer">
     <div class="user-card">
@@ -944,7 +946,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
     <div class="topbar-left">
       <div>
         <div class="page-title" id="pageTitle">Dashboard</div>
-        <div class="page-sub" id="pageSubEl" id="pageSub">Welcome back, Rajesh — 3 hearings this week</div>
+        <div class="page-sub" id="pageSubEl"><span id="topbarGreeting">Welcome back, Rajesh — 3 hearings this week</span></div>
       </div>
     </div>
     <div class="topbar-right">
@@ -1383,6 +1385,50 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
       </div>
     </div>
 
+
+    <!-- ══════════ TEAM MEMBERS ══════════ -->
+    <div class="view" id="view-team">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <div style="font-size:13px;color:var(--text3);">Add attorneys, clerks and paralegals who can track trademark records.</div>
+        <button class="topbar-btn btn-primary" onclick="openModal('addTeamModal')">+ Add Team Member</button>
+      </div>
+
+      <!-- Role legend -->
+      <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+        <span style="font-size:12px;padding:5px 12px;border-radius:20px;background:rgba(37,99,255,.12);color:#7aa3ff;border:1px solid rgba(37,99,255,.25);">⚖️ Attorney — Full Access</span>
+        <span style="font-size:12px;padding:5px 12px;border-radius:20px;background:rgba(0,212,170,.1);color:var(--teal);border:1px solid rgba(0,212,170,.2);">📋 Paralegal — View + Tasks</span>
+        <span style="font-size:12px;padding:5px 12px;border-radius:20px;background:rgba(245,158,11,.1);color:var(--amber);border:1px solid rgba(245,158,11,.2);">📁 Clerk — View Only</span>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>👥 Team Members</h3><span class="sec-link" id="teamCountLabel">3 members</span></div>
+        <div class="card-body">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>Access</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teamTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pending Invites -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-head"><h3>📨 Pending Invitations</h3></div>
+        <div class="card-body" id="pendingInvites">
+          <div style="padding:18px;text-align:center;color:var(--text3);font-size:13px;">No pending invitations</div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /shell -->
@@ -1504,6 +1550,81 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
     <div class="modal-btns">
       <button class="topbar-btn btn-ghost" onclick="closeModal('gcalModal')">Cancel</button>
       <button class="topbar-btn btn-primary" onclick="addToGoogleCalendar()" id="gcalAddBtn">📅 Add to Calendar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ ADD TEAM MEMBER MODAL ══ -->
+<div class="overlay" id="addTeamModal">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title">👥 Add Team Member</div>
+    <div class="modal-sub">Invite a colleague to access MarkShield and track trademark records.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="mf"><label>Full Name <span style="color:#f43f5e;">*</span></label><input type="text" id="tmFullName" placeholder="e.g. Priya Mehta"></div>
+      <div class="mf"><label>Role <span style="color:#f43f5e;">*</span></label>
+        <select id="tmRole">
+          <option value="attorney">⚖️ Attorney</option>
+          <option value="paralegal">📋 Paralegal</option>
+          <option value="clerk">📁 Clerk</option>
+          <option value="intern">🎓 Intern</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="mf"><label>Email <span style="color:#f43f5e;">*</span></label><input type="email" id="tmEmail" placeholder="colleague@firm.com"></div>
+      <div class="mf"><label>Mobile</label><input type="tel" id="tmMobile" placeholder="+91 98765 43210"></div>
+    </div>
+    <div class="mf"><label>Bar / Enrolment No. (if attorney)</label><input type="text" id="tmBarNo" placeholder="e.g. GJ/1234/2015" class="mono"></div>
+    <div class="mf"><label>Access Level</label>
+      <select id="tmAccess">
+        <option value="full">Full Access (Portfolio, Scraper, Calendar, Tasks, AI)</option>
+        <option value="view_tasks">View + Tasks (No Scraper / AI)</option>
+        <option value="view">View Only (Read-only portfolio & calendar)</option>
+      </select>
+    </div>
+    <div class="mf"><label>Assigned Clients / Trademarks (optional)</label>
+      <input type="text" placeholder="e.g. FRESHMART, TECHVEDA or leave blank for all"></div>
+    <div style="background:rgba(37,99,255,.07);border:1px solid rgba(37,99,255,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:#7aa3ff;margin-bottom:14px;">
+      📧 An invitation email will be sent from your registered email to the team member.
+    </div>
+    <div class="modal-btns">
+      <button class="topbar-btn btn-ghost" onclick="closeModal('addTeamModal')">Cancel</button>
+      <button class="topbar-btn btn-primary" onclick="addTeamMember()">📨 Send Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EDIT TEAM MEMBER MODAL ══ -->
+<div class="overlay" id="editTeamModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">✏️ Edit Team Member</div>
+    <div class="modal-sub">Update role, access level or contact info.</div>
+    <input type="hidden" id="editTeamIdx">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="mf"><label>Full Name</label><input type="text" id="editTmName"></div>
+      <div class="mf"><label>Role</label>
+        <select id="editTmRole">
+          <option value="attorney">⚖️ Attorney</option>
+          <option value="paralegal">📋 Paralegal</option>
+          <option value="clerk">📁 Clerk</option>
+          <option value="intern">🎓 Intern</option>
+        </select>
+      </div>
+    </div>
+    <div class="mf"><label>Email</label><input type="email" id="editTmEmail"></div>
+    <div class="mf"><label>Mobile</label><input type="tel" id="editTmMobile"></div>
+    <div class="mf"><label>Access Level</label>
+      <select id="editTmAccess">
+        <option value="full">Full Access</option>
+        <option value="view_tasks">View + Tasks</option>
+        <option value="view">View Only</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="topbar-btn btn-ghost" onclick="closeModal('editTeamModal')">Cancel</button>
+      <button class="topbar-btn" style="background:rgba(244,63,94,.15);color:#f43f5e;border:1px solid rgba(244,63,94,.3);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;" onclick="removeTeamMember()">🗑 Remove</button>
+      <button class="topbar-btn btn-primary" onclick="saveTeamMember()">💾 Save Changes</button>
     </div>
   </div>
 </div>
@@ -1797,35 +1918,36 @@ function showTMAPreview(data, code) {
     { v: data.clients,    l: 'Clients'      },
   ].map(s => `<div class="tma-preview-stat"><div class="psv">${s.v}</div><div class="psl">${s.l}</div></div>`).join('');
   document.getElementById('tmaFetchedPreview').style.display = 'block';
-  // Update app sidebar user card with real attorney name
-  if (currentUser) {
-    document.getElementById('sidebarUserName').textContent = data.name;
-    document.getElementById('sidebarUserRole').textContent = 'IP Attorney · ' + code;
-    document.getElementById('sidebarUserInit').textContent = data.name.split(' ').map(w=>w[0]).join('');
-    document.getElementById('topbarGreeting').textContent = `Welcome back, ${data.name.split(' ')[0]} — ${data.hearings} hearings scheduled`;
-    document.getElementById('pageSubEl').textContent = `Welcome back, ${data.name.split(' ')[0]} — ${data.hearings} hearings this week`;
-  }
+  // Update app sidebar user card with real attorney name (null-safe)
+  const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  _set('sidebarUserName', data.name);
+  _set('sidebarUserRole', 'IP Attorney · ' + code);
+  _set('sidebarUserInit', data.name.split(' ').map(w=>w[0]).join('').slice(0,2));
+  _set('topbarGreeting', `Welcome back, ${data.name.split(' ')[0]} — ${data.hearings} hearings scheduled`);
+  _set('pageSubEl', `Welcome back, ${data.name.split(' ')[0]} — ${data.hearings} hearings this week`);
 }
 
 function enterApp() {
-  document.getElementById('tmaScreen').style.display = 'none';
+  const tmaScreenEl = document.getElementById('tmaScreen');
+  if (tmaScreenEl) tmaScreenEl.style.display = 'none';
   const appShell = document.getElementById('appShell');
-  appShell.style.display = 'block';
-  // Personalize if tmaData or agentProfile present
-  const name = (tmaData && tmaData.name) || agentProfile.fullName || (currentUser && currentUser.name) || 'Attorney';
+  if (appShell) appShell.style.display = 'block';
+
+  // Personalize with null-safe helper
+  const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const name = (tmaData && tmaData.name) || (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'Attorney';
   const firstName = name.split(' ')[0];
   const hearings = (tmaData && tmaData.hearings) || 0;
-  const greet = document.getElementById('topbarGreeting');
-  if (greet) greet.textContent = `Welcome back, ${firstName} — ${hearings} hearings scheduled`;
-  document.getElementById('pageSubEl').textContent = `Welcome back, ${firstName} — ${hearings} hearings this week`;
-  document.getElementById('sidebarUserName').textContent = name;
-  const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('sidebarUserInit').textContent = initials;
+  const role = (agentProfile && agentProfile.firmName) ? `IP Attorney · ${agentProfile.firmName}` : 'IP Attorney · Pro Plan';
+  _set('topbarGreeting', `Welcome back, ${firstName} — ${hearings} hearings scheduled`);
+  _set('pageSubEl', `Welcome back, ${firstName} — ${hearings} hearings this week`);
+  _set('sidebarUserName', name);
+  _set('sidebarUserRole', role);
+  _set('sidebarUserInit', name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase());
 
-  // Auto-send "setup complete" reminder to agent
-  setTimeout(() => triggerAutoReminder('Setup complete! Hearing sync is active.'), 1200);
-  // Add upcoming calendar events automatically
-  if (gcalConnected) autoSyncHearingsToCalendar();
+  // Auto-send "setup complete" reminder to agent (deferred so DOM is ready)
+  setTimeout(() => triggerAutoReminder('Setup complete! Hearing sync is active.'), 1500);
+  if (gcalConnected) setTimeout(() => autoSyncHearingsToCalendar(), 2000);
 }
 
 // ════════════════════════════════════════
@@ -2093,7 +2215,8 @@ const pages = {
   calendar: 'Hearing Calendar',
   tasks: 'Task Manager',
   ai: 'AI Legal Assistant',
-  reports: 'Analytics & Reports'
+  reports: 'Analytics & Reports',
+  team:    'Team Members'
 };
 const subs = {
   dashboard: 'Welcome back, Rajesh — 3 hearings this week',
@@ -2104,7 +2227,8 @@ const subs = {
   calendar: 'All your hearings, deadlines & renewals',
   tasks: 'Track all IP-related work',
   ai: 'Ask anything about trademark law & your portfolio',
-  reports: 'Monthly filing reports & analytics'
+  reports: 'Monthly filing reports & analytics',
+  team:    'Manage your team — attorneys, clerks & paralegals'
 };
 function show(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -2777,6 +2901,174 @@ function appendTyping() {
   msgs.scrollTop = msgs.scrollHeight;
   return div;
 }
+
+// ════════════════════════════════════════
+//  TEAM MEMBERS
+// ════════════════════════════════════════
+
+let teamMembers = [
+  { name: 'Priya Shah',    role: 'paralegal', email: 'priya@firm.com',   mobile: '+91 98001 23456', barNo: '',            access: 'view_tasks', status: 'active',  joined: '01 Jan 2026' },
+  { name: 'Arjun Mehta',   role: 'clerk',     email: 'arjun@firm.com',   mobile: '+91 97002 34567', barNo: '',            access: 'view',       status: 'active',  joined: '15 Feb 2026' },
+  { name: 'Kavya Desai',   role: 'attorney',  email: 'kavya@firm.com',   mobile: '+91 96003 45678', barNo: 'GJ/4421/2018', access: 'full',      status: 'active',  joined: '01 Mar 2026' },
+];
+
+const ROLE_LABELS = { attorney: '⚖️ Attorney', paralegal: '📋 Paralegal', clerk: '📁 Clerk', intern: '🎓 Intern' };
+const ROLE_COLORS = { attorney: 'chip-objected', paralegal: 'chip-hearing', clerk: 'chip-pending', intern: 'chip-registered' };
+const ACCESS_LABELS = { full: 'Full Access', view_tasks: 'View + Tasks', view: 'View Only' };
+const ACCESS_COLORS = { full: '#00c897', view_tasks: '#f59e0b', view: '#94a3c8' };
+
+function renderTeam() {
+  const tbody = document.getElementById('teamTable');
+  const countEl = document.getElementById('teamCountLabel');
+  if (!tbody) return;
+  if (countEl) countEl.textContent = teamMembers.length + ' member' + (teamMembers.length !== 1 ? 's' : '');
+
+  tbody.innerHTML = teamMembers.map((m, i) => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2563ff,#00d4aa);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">
+            ${m.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">${m.name}</div>
+            <div style="font-size:11px;color:var(--text3);">${m.barNo ? m.barNo : 'No bar no.'}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="chip ${ROLE_COLORS[m.role] || 'chip-pending'}" style="font-size:11px;">${ROLE_LABELS[m.role] || m.role}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${m.email}</td>
+      <td style="font-size:12px;color:var(--text3);">${m.mobile || '—'}</td>
+      <td><span style="font-size:11px;padding:3px 9px;border-radius:6px;background:rgba(0,0,0,.2);border:1px solid var(--border);color:${ACCESS_COLORS[m.access]};">${ACCESS_LABELS[m.access]}</span></td>
+      <td><span class="chip chip-registered" style="font-size:11px;">${m.status === 'active' ? '✅ Active' : '⏳ Pending'}</span></td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openEditTeam(${i})">✏️ Edit</button>
+          <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="sendTeamEmail(${i})">📧</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function addTeamMember() {
+  const name   = document.getElementById('tmFullName').value.trim();
+  const email  = document.getElementById('tmEmail').value.trim();
+  const role   = document.getElementById('tmRole').value;
+  const mobile = document.getElementById('tmMobile').value.trim();
+  const barNo  = document.getElementById('tmBarNo').value.trim();
+  const access = document.getElementById('tmAccess').value;
+
+  if (!name || !email) { alert('Please fill in Name and Email.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email.'); return; }
+
+  teamMembers.push({
+    name, role, email, mobile, barNo, access,
+    status: 'pending',
+    joined: new Date().toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})
+  });
+
+  // Reset form
+  ['tmFullName','tmEmail','tmMobile','tmBarNo'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+
+  closeModal('addTeamModal');
+  renderTeam();
+  renderPendingInvites();
+
+  // Send invite email via Gmail
+  const agentName  = (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'Your TM Agent';
+  const agentFirm  = (agentProfile && agentProfile.firmName) || agentName;
+  const agentEmail = (agentProfile && agentProfile.email) || '';
+  const subject = encodeURIComponent(`You are invited to join ${agentFirm} on MarkShield`);
+  const body = encodeURIComponent(`Dear ${name},
+
+You have been invited by ${agentName} (${agentFirm}) to join MarkShield — AI Trademark Intelligence Platform.
+
+Your role: ${ROLE_LABELS[role]}
+Access level: ${ACCESS_LABELS[access]}
+
+Please contact ${agentEmail} for your login credentials.
+
+Warm regards,
+${agentName}`);
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`, '_blank');
+  showToast('emailToast', `📨 Invitation sent to ${name}!`, 3000);
+}
+
+function openEditTeam(idx) {
+  const m = teamMembers[idx];
+  if (!m) return;
+  document.getElementById('editTeamIdx').value = idx;
+  document.getElementById('editTmName').value   = m.name;
+  document.getElementById('editTmRole').value   = m.role;
+  document.getElementById('editTmEmail').value  = m.email;
+  document.getElementById('editTmMobile').value = m.mobile || '';
+  document.getElementById('editTmAccess').value = m.access;
+  openModal('editTeamModal');
+}
+
+function saveTeamMember() {
+  const idx = parseInt(document.getElementById('editTeamIdx').value);
+  if (isNaN(idx) || !teamMembers[idx]) return;
+  teamMembers[idx] = {
+    ...teamMembers[idx],
+    name:   document.getElementById('editTmName').value.trim()  || teamMembers[idx].name,
+    role:   document.getElementById('editTmRole').value,
+    email:  document.getElementById('editTmEmail').value.trim() || teamMembers[idx].email,
+    mobile: document.getElementById('editTmMobile').value.trim(),
+    access: document.getElementById('editTmAccess').value,
+  };
+  closeModal('editTeamModal');
+  renderTeam();
+  showToast('emailToast', '✅ Team member updated!', 2500);
+}
+
+function removeTeamMember() {
+  const idx = parseInt(document.getElementById('editTeamIdx').value);
+  if (isNaN(idx)) return;
+  if (!confirm(`Remove ${teamMembers[idx].name} from the team?`)) return;
+  teamMembers.splice(idx, 1);
+  closeModal('editTeamModal');
+  renderTeam();
+  showToast('emailToast', '🗑 Team member removed.', 2000);
+}
+
+function sendTeamEmail(idx) {
+  const m = teamMembers[idx];
+  if (!m) return;
+  const agentName  = (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'TM Agent';
+  const subject = encodeURIComponent(`Update from MarkShield — ${agentName}`);
+  const body    = encodeURIComponent(`Dear ${m.name},
+
+This is a message from ${agentName} regarding your trademark tasks.
+
+[Add your message here]
+
+Warm regards,
+${agentName}`);
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(m.email)}&su=${subject}&body=${body}`, '_blank');
+}
+
+function renderPendingInvites() {
+  const el = document.getElementById('pendingInvites');
+  if (!el) return;
+  const pending = teamMembers.filter(m => m.status === 'pending');
+  if (!pending.length) {
+    el.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:13px;">No pending invitations</div>';
+    return;
+  }
+  el.innerHTML = pending.map((m, i) => `
+    <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border);">
+      <div style="width:32px;height:32px;border-radius:50%;background:rgba(245,158,11,.15);border:1.5px dashed var(--amber);display:flex;align-items:center;justify-content:center;font-size:12px;">⏳</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${m.name}</div>
+        <div style="font-size:11px;color:var(--text3);">${m.email} · ${ROLE_LABELS[m.role]}</div>
+      </div>
+      <span style="font-size:11px;color:var(--amber);">Invite sent</span>
+    </div>`).join('');
+}
+
+// Render on load
+renderTeam();
+renderPendingInvites();
+
 </script>
-</body>
-</html>
