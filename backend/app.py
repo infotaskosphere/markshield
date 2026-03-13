@@ -1,21 +1,3 @@
-"""
-MarkShield Backend  ·  IP India Trademark Intelligence API
-==========================================================
-Run:   python app.py            (dev)
-       gunicorn -w 4 app:app    (prod)
-
-Endpoints  ──────────────────────────────────────────────
-  GET  /api/health
-  GET  /api/cause-list          ?date=DD/MM/YYYY &agent=NAME &location=Delhi
-  GET  /api/cause-list/today    ?agent=NAME
-  GET  /api/application/<no>
-  POST /api/applications/bulk   {"app_nos":["123","456"]}
-  GET  /api/agent/hearings      ?agent=NAME &from=DD/MM/YYYY &to=DD/MM/YYYY
-  GET  /api/public-search       ?q=MARK &class=29 &type=wordmark
-  POST /api/efiling/login       {"username":"..","password":".."}
-  GET  /api/portfolio/<TMA_CODE>
-"""
-
 import os, logging
 from flask import Flask, jsonify, request, Response
 from datetime import datetime
@@ -26,6 +8,8 @@ from routes.agent       import bp_agent
 from routes.search      import bp_search
 from routes.efiling     import bp_efiling
 from routes.portfolio   import bp_portfolio
+from routes.auth        import bp_auth
+from routes.notify      import bp_notify
 
 # ── logging ───────────────────────────────────────────────
 logging.basicConfig(
@@ -54,23 +38,29 @@ def create_app():
             return Response(status=200)
 
     # ── blueprints ────────────────────────────────────────
-    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio]:
+    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_auth, bp_notify]:
         app.register_blueprint(bp, url_prefix="/api")
 
     # ── health ────────────────────────────────────────────
     @app.route("/api/health")
     def health():
         return jsonify({
-            "status": "ok",
+            "status":  "ok",
             "service": "MarkShield IP India Backend",
-            "version": "2.0.0",
-            "time": datetime.utcnow().isoformat() + "Z",
+            "version": "3.0.0",
+            "time":    datetime.utcnow().isoformat() + "Z",
+            "features": {
+                "scraper":            True,
+                "agent_registration": True,
+                "google_calendar":    bool(os.getenv("GOOGLE_CLIENT_ID")),
+                "gmail_reminders":    bool(os.getenv("GOOGLE_CLIENT_ID")),
+            },
             "sources": {
-                "cause_list":   "tmrsearch.ipindia.gov.in/TMRDynamicUtility/CauseListForHearingCase/Index",
-                "eregister":    "tmrsearch.ipindia.gov.in/eregister/",
-                "public_search":"tmrsearch.ipindia.gov.in/tmrpublicsearch/",
-                "efiling":      "ipindiaonline.gov.in/trademarkefiling/",
-            }
+                "cause_list":    "tmrsearch.ipindia.gov.in/TMRDynamicUtility/CauseListForHearingCase/Index",
+                "eregister":     "tmrsearch.ipindia.gov.in/eregister/",
+                "public_search": "tmrsearch.ipindia.gov.in/tmrpublicsearch/",
+                "efiling":       "ipindiaonline.gov.in/trademarkefiling/",
+            },
         })
 
     @app.route("/")
