@@ -10,6 +10,8 @@ from routes.efiling     import bp_efiling
 from routes.portfolio   import bp_portfolio
 from routes.auth        import bp_auth
 from routes.notify      import bp_notify
+from routes.queue_list  import bp_queue
+from routes.export      import bp_export
 
 # ── logging ───────────────────────────────────────────────
 logging.basicConfig(
@@ -38,7 +40,7 @@ def create_app():
             return Response(status=200)
 
     # ── blueprints ────────────────────────────────────────
-    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_auth, bp_notify]:
+    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_auth, bp_notify, bp_queue, bp_export]:
         app.register_blueprint(bp, url_prefix="/api")
 
     # ── health ────────────────────────────────────────────
@@ -60,6 +62,7 @@ def create_app():
                 "eregister":     "tmrsearch.ipindia.gov.in/eregister/",
                 "public_search": "tmrsearch.ipindia.gov.in/tmrpublicsearch/",
                 "efiling":       "ipindiaonline.gov.in/trademarkefiling/",
+                "tla_queue":     "ipindiaonline.gov.in/trademarkefiling/DynamicUtilities/TLA_QueueList_new.aspx",
             },
         })
 
