@@ -948,6 +948,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
     <div class="nav-item" onclick="show('monitoring')"><span class="nav-icon">⊛</span> TM Watch <span class="nav-badge">3</span></div>
     <div class="nav-item" onclick="show('search')"><span class="nav-icon">⌕</span> Smart Search</div>
     <div class="nav-item" onclick="show('scraper')"><span class="nav-icon">↻</span> Data Scraper</div>
+    <div class="nav-item" onclick="show('pending')"><span class="nav-icon">⚠</span> Pending Replies <span class="nav-badge" id="pendingBadge" style="background:#ef4444;display:none;">0</span></div>
     <div class="nav-section-label">Compliance</div>
     <div class="nav-item" onclick="show('calendar')"><span class="nav-icon">⏣</span> Hearing Calendar <span class="nav-badge">5</span></div>
     <div class="nav-item" onclick="show('tasks')"><span class="nav-icon">✦</span> Task Manager</div>
@@ -1185,7 +1186,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:700;color:#7aa3ff;">Live Data Sources — IP India</div>
           <div style="font-size:11.5px;color:var(--text3);margin-top:2px;">
-            Cause List (Public) &nbsp;·&nbsp; e-Register (Public) &nbsp;·&nbsp; TM Public Search &nbsp;·&nbsp; eFiling Portal (Login)
+            Cause List (Public) &nbsp;·&nbsp; e-Register (Public) &nbsp;·&nbsp; TM Public Search &nbsp;·&nbsp; eFiling Portal (Login) &nbsp;·&nbsp; <span style="color:#f87171;">TLA Queue List (eFiling)</span>
           </div>
           <div id="backendIndicator" style="font-size:11px;margin-top:4px;color:var(--text3);">⏳ Checking backend...</div>
         </div>
@@ -1194,6 +1195,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
           <a href="https://tmrsearch.ipindia.gov.in/eregister/" target="_blank" style="font-size:11px;padding:5px 11px;border-radius:7px;background:var(--s2);border:1px solid var(--border);color:var(--text2);text-decoration:none;">e-Register ↗</a>
           <a href="https://tmrsearch.ipindia.gov.in/tmrpublicsearch/" target="_blank" style="font-size:11px;padding:5px 11px;border-radius:7px;background:var(--s2);border:1px solid var(--border);color:var(--text2);text-decoration:none;">Public Search ↗</a>
           <a href="https://ipindiaonline.gov.in/trademarkefiling/user/frmLoginNew.aspx" target="_blank" style="font-size:11px;padding:5px 11px;border-radius:7px;background:var(--s2);border:1px solid var(--border);color:var(--text2);text-decoration:none;">eFiling Portal ↗</a>
+          <a href="https://ipindiaonline.gov.in/trademarkefiling/DynamicUtilities/TLA_QueueList_new.aspx" target="_blank" style="font-size:11px;padding:5px 11px;border-radius:7px;background:var(--s2);border:1px solid rgba(239,68,68,.4);color:#f87171;text-decoration:none;">TLA Queue List ↗</a>
         </div>
       </div>
 
@@ -1202,6 +1204,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
         <div class="tab on" onclick="scraperTab('causelist',this)">📋 Cause List — Live Hearings</div>
         <div class="tab" onclick="scraperTab('appstatus',this)">🔍 Application Status</div>
         <div class="tab" onclick="scraperTab('agentsearch',this)">👤 Agent / TMA Search</div>
+        <div class="tab" onclick="scraperTab('queuelist',this)">🗂 TLA Queue List</div>
       </div>
 
       <!-- TAB 1: Cause List live fetch -->
@@ -1296,6 +1299,77 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
         <div id="agResults"></div>
       </div>
 
+      <!-- TAB 4: TLA Queue List -->
+      <div id="stab-queuelist" style="display:none;">
+        <div class="scraper-card">
+          <div class="scraper-title">🗂 TLA Queue List — IP India eFiling Portal</div>
+          <div class="scraper-sub">
+            Fetches pending application queue from
+            <a href="https://ipindiaonline.gov.in/trademarkefiling/DynamicUtilities/TLA_QueueList_new.aspx" target="_blank" style="color:var(--teal);">ipindiaonline.gov.in/trademarkefiling/DynamicUtilities/TLA_QueueList_new.aspx</a>
+            — shows all queued TM applications with action type, dates, and deadline countdown.
+          </div>
+          <div class="scraper-form">
+            <div class="sf-group" style="flex:2;">
+              <label>Username / TMA Code (optional filter)</label>
+              <input type="text" placeholder="e.g. TMA/GJ/2847 or leave blank for all" id="queueUsername">
+            </div>
+            <div class="sf-group">
+              <label>Application No. (optional)</label>
+              <input type="text" placeholder="e.g. 5847291" id="queueAppNo" class="mono">
+            </div>
+            <div class="sf-group" style="flex:0;min-width:auto;">
+              <label>&nbsp;</label>
+              <button class="topbar-btn btn-primary" onclick="fetchQueueList()">🔄 Fetch Queue</button>
+            </div>
+          </div>
+          <div class="log-terminal" id="qlLog">
+            <div class="tfl"><span class="tfl-ts">--:--:--</span><span class="tfl-info">Queue List fetcher ready. Click "Fetch Queue" to load from IP India eFiling portal.</span></div>
+          </div>
+          <div class="progress-bar-wrap" style="margin-top:8px;"><div class="progress-bar-fill" id="qlBar" style="width:0%"></div></div>
+        </div>
+        <div id="qlResults"></div>
+      </div>
+
+    </div>
+
+    <!-- ══════════ PENDING REPLIES ══════════ -->
+    <div class="view" id="view-pending">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h2 style="font-size:18px;font-weight:800;margin:0 0 4px;">⚠ Pending Replies</h2>
+          <div style="font-size:12px;color:var(--text3);">Track all pending examination reports, opposition replies, and Sec 45/46 responses — with days remaining countdown.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="topbar-btn btn-primary" onclick="fetchPendingReplies()" style="font-size:12px;">🔄 Refresh from IP India</button>
+          <button class="topbar-btn" onclick="exportPendingRepliesPDF()" style="font-size:12px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);">⬇ Export PDF</button>
+          <button class="topbar-btn" onclick="exportPendingRepliesExcel()" style="font-size:12px;background:rgba(33,163,70,.12);color:#4ade80;border:1px solid rgba(33,163,70,.25);">⬇ Export Excel</button>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="stats-grid" id="pendingStats" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px;">
+        <div class="stat-card"><div class="stat-accent" style="background:#ef4444"></div><div class="stat-label">Overdue</div><div class="stat-value" id="pStat-overdue">—</div><div class="stat-delta">Reply deadline passed</div></div>
+        <div class="stat-card"><div class="stat-accent" style="background:#f59e0b"></div><div class="stat-label">Critical (≤7 days)</div><div class="stat-value" id="pStat-critical">—</div><div class="stat-delta">File reply immediately</div></div>
+        <div class="stat-card"><div class="stat-accent" style="background:#facc15"></div><div class="stat-label">Warning (≤15 days)</div><div class="stat-value" id="pStat-warning">—</div><div class="stat-delta">Action needed soon</div></div>
+        <div class="stat-card"><div class="stat-accent" style="background:#00d4aa"></div><div class="stat-label">Total Pending</div><div class="stat-value" id="pStat-total">—</div><div class="stat-delta">Across all categories</div></div>
+      </div>
+
+      <!-- Tabs: All / Exam Report / Opposition / Sec 45-46 -->
+      <div class="tabs" id="pendingTabs">
+        <div class="tab on" onclick="filterPendingTab('all',this)">📋 All Pending</div>
+        <div class="tab" onclick="filterPendingTab('examination',this)">🔍 Examination Report</div>
+        <div class="tab" onclick="filterPendingTab('opposition',this)">⚔️ Opposition</div>
+        <div class="tab" onclick="filterPendingTab('sec45',this)">§ Sec 45 / 46</div>
+      </div>
+
+      <div id="pendingResults">
+        <div style="padding:40px;text-align:center;color:var(--text3);">
+          <div style="font-size:32px;margin-bottom:12px;">⚠</div>
+          <div style="font-weight:600;margin-bottom:6px;">Load Pending Replies</div>
+          <div style="font-size:12px;margin-bottom:16px;">Click "Refresh from IP India" to fetch the latest TLA Queue List with all pending reply deadlines.</div>
+          <button class="topbar-btn btn-primary" onclick="fetchPendingReplies()">🔄 Fetch Now</button>
+        </div>
+      </div>
     </div>
 
     <!-- ══════════ CALENDAR ══════════ -->
@@ -1399,19 +1473,59 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><h3>📑 Download Reports</h3></div>
+          <div class="card-head"><h3>📑 Export TM Reports</h3></div>
           <div class="card-body" style="padding:16px;display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--s2);border-radius:9px;border:1px solid var(--border);">
-              <div><div style="font-size:13px;font-weight:600;">Portfolio Summary</div><div style="font-size:11px;color:var(--text3);">PDF • All 24 trademarks</div></div>
-              <button class="topbar-btn btn-ghost" style="font-size:11.5px;padding:5px 12px;">⬇ PDF</button>
+
+            <!-- Single / Custom TM report -->
+            <div style="padding:14px;background:var(--s2);border-radius:9px;border:1px solid var(--border);">
+              <div style="font-size:13px;font-weight:600;margin-bottom:8px;">🔖 Custom TM Report</div>
+              <div style="font-size:11.5px;color:var(--text3);margin-bottom:10px;">Enter one or more application numbers to generate a targeted report.</div>
+              <input type="text" id="exportAppNos" placeholder="e.g. 5847291, 5821043, 5798432" class="mono"
+                style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;margin-bottom:8px;">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="topbar-btn" onclick="exportCustomPDF()" style="font-size:12px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);">⬇ PDF Report</button>
+                <button class="topbar-btn" onclick="exportCustomExcel()" style="font-size:12px;background:rgba(33,163,70,.12);color:#4ade80;border:1px solid rgba(33,163,70,.25);">⬇ Excel Report</button>
+              </div>
             </div>
+
+            <!-- Portfolio summary -->
             <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--s2);border-radius:9px;border:1px solid var(--border);">
-              <div><div style="font-size:13px;font-weight:600;">Hearing Calendar Report</div><div style="font-size:11px;color:var(--text3);">PDF • Next 30 days</div></div>
-              <button class="topbar-btn btn-ghost" style="font-size:11.5px;padding:5px 12px;">⬇ PDF</button>
+              <div>
+                <div style="font-size:13px;font-weight:600;">📂 Portfolio Summary</div>
+                <div style="font-size:11px;color:var(--text3);">All tracked trademarks with current status</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="topbar-btn" onclick="exportPortfolioPDF()" style="font-size:11.5px;padding:5px 10px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);">⬇ PDF</button>
+                <button class="topbar-btn" onclick="exportPortfolioExcel()" style="font-size:11.5px;padding:5px 10px;background:rgba(33,163,70,.12);color:#4ade80;border:1px solid rgba(33,163,70,.25);">⬇ Excel</button>
+              </div>
             </div>
+
+            <!-- Hearing calendar -->
             <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--s2);border-radius:9px;border:1px solid var(--border);">
-              <div><div style="font-size:13px;font-weight:600;">Conflict Monitoring Report</div><div style="font-size:11px;color:var(--text3);">XLSX • March 2026</div></div>
-              <button class="topbar-btn btn-ghost" style="font-size:11.5px;padding:5px 12px;">⬇ XLS</button>
+              <div>
+                <div style="font-size:13px;font-weight:600;">📅 Hearing Calendar Report</div>
+                <div style="font-size:11px;color:var(--text3);">Upcoming hearings — next 30 days</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="topbar-btn" onclick="exportHearingsPDF()" style="font-size:11.5px;padding:5px 10px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);">⬇ PDF</button>
+                <button class="topbar-btn" onclick="exportHearingsExcel()" style="font-size:11.5px;padding:5px 10px;background:rgba(33,163,70,.12);color:#4ade80;border:1px solid rgba(33,163,70,.25);">⬇ Excel</button>
+              </div>
+            </div>
+
+            <!-- Pending replies -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--s2);border-radius:9px;border:1px solid rgba(239,68,68,.2);">
+              <div>
+                <div style="font-size:13px;font-weight:600;">⚠ Pending Replies Report</div>
+                <div style="font-size:11px;color:var(--text3);">Overdue & upcoming reply deadlines</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="topbar-btn" onclick="exportPendingRepliesPDF()" style="font-size:11.5px;padding:5px 10px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);">⬇ PDF</button>
+                <button class="topbar-btn" onclick="exportPendingRepliesExcel()" style="font-size:11.5px;padding:5px 10px;background:rgba(33,163,70,.12);color:#4ade80;border:1px solid rgba(33,163,70,.25);">⬇ Excel</button>
+              </div>
+            </div>
+
+            <div style="font-size:10.5px;color:var(--text3);padding:4px 2px;">
+              💡 Reports include: App No., TM name, status, pending cases count, hearing dates, examiner notes, and days left for replies.
             </div>
           </div>
         </div>
@@ -2481,6 +2595,7 @@ const pages = {
   monitoring: 'TM Watch & Monitoring',
   search: 'Smart Trademark Search',
   scraper: 'IP India Scraper',
+  pending: 'Pending Replies',
   calendar: 'Hearing Calendar',
   tasks: 'Task Manager',
   ai: 'AI Legal Assistant',
@@ -2494,6 +2609,7 @@ const subs = {
   monitoring: 'AI-powered conflict detection & real-time alerts',
   search: 'Reduce duplication risk before filing',
   scraper: 'Fetch live data from IP India database',
+  pending: 'Examination reports, opposition replies & Sec 45/46 deadlines',
   calendar: 'All your hearings, deadlines & renewals',
   tasks: 'Track all IP-related work',
   ai: 'Ask anything about trademark law & your portfolio',
@@ -2627,7 +2743,7 @@ function showResults(name) {
 
 // ─── SCRAPER TAB SWITCHER ───
 function scraperTab(id, el) {
-  ['causelist','appstatus','agentsearch'].forEach(t => {
+  ['causelist','appstatus','agentsearch','queuelist'].forEach(t => {
     document.getElementById('stab-'+t).style.display = t===id ? 'block' : 'none';
   });
   document.querySelectorAll('#scraperTabs .tab').forEach(t => t.classList.remove('on'));
@@ -3905,6 +4021,403 @@ function clearDraftHistory() {
   if (!confirm('Clear all saved drafts?')) return;
   _draftHistory = [];
   renderDraftHistory();
+}
+
+// ══════════════════════════════════════════════════════════
+//  TLA QUEUE LIST  (Tab 4 — Scraper)
+// ══════════════════════════════════════════════════════════
+const _SAMPLE_QUEUE = [
+  {app_no:'7421462',tm_name:'SHIVAY',action_type:'Examination Report',date:'12/02/2026',reply_status:'Pending',agent:'VISHAL SHARMA',applicant:'MANJUL KUMAR SHUKLA',office:'Delhi',tm_class:'30',deadline_days:30,days_left:1,urgency:'critical'},
+  {app_no:'6141022',tm_name:'SWISS BEAUTY',action_type:'Examination Report',date:'10/01/2026',reply_status:'Pending',agent:'LALJI ADVOCATES',applicant:'SWISS BEAUTY COSMETICS PVT. LTD.',office:'Delhi',tm_class:'3',deadline_days:30,days_left:-32,urgency:'overdue'},
+  {app_no:'5832570',tm_name:'MANKIND',action_type:'Opposition Reply',date:'20/01/2026',reply_status:'Pending',agent:'DASWANI & DASWANI',applicant:'MANKIND PHARMA LIMITED',office:'Mumbai',tm_class:'5',deadline_days:60,days_left:38,urgency:'warning'},
+  {app_no:'7393199',tm_name:'KAMLESH ESTATE',action_type:'Sec 45 - Proof of Use',date:'15/02/2026',reply_status:'Pending',agent:'LALJI ADVOCATES',applicant:'LOKESH GARG',office:'Delhi',tm_class:'36',deadline_days:60,days_left:64,urgency:'ok'},
+  {app_no:'6288120',tm_name:'KSC HOME',action_type:'Sec 46 - Non-Use',date:'18/02/2026',reply_status:'Pending',agent:'LALJI ADVOCATES',applicant:'KSC HOMENEEDS PVT LTD',office:'Delhi',tm_class:'21',deadline_days:60,days_left:67,urgency:'ok'},
+  {app_no:'7348801',tm_name:'MERCK',action_type:'Examination Report',date:'05/02/2026',reply_status:'Pending',agent:'LALL & SETHI',applicant:'Merck KGaA',office:'Delhi',tm_class:'5',deadline_days:30,days_left:7,urgency:'critical'},
+  {app_no:'7430564',tm_name:'DRON',action_type:'Opposition Reply',date:'01/01/2026',reply_status:'Pending',agent:'SARVARTH LEGAL',applicant:'DRON',office:'Mumbai',tm_class:'12',deadline_days:60,days_left:-11,urgency:'overdue'},
+  {app_no:'6273059',tm_name:'DEEPAK NITRITE',action_type:'Examination Report (FER)',date:'28/01/2026',reply_status:'Pending',agent:'INFINVENT IP',applicant:'DEEPAK NITRITE LIMITED',office:'Ahmedabad',tm_class:'1',deadline_days:30,days_left:15,urgency:'warning'},
+];
+
+window._queueData = [];
+window._pendingData = [];
+
+async function fetchQueueList() {
+  const username = document.getElementById('queueUsername').value.trim();
+  const appNo    = document.getElementById('queueAppNo').value.trim();
+  const logId = 'qlLog', barId = 'qlBar';
+
+  document.getElementById('qlLog').innerHTML = '';
+  document.getElementById('qlResults').innerHTML = '';
+  setBar(barId, 5);
+
+  appendLog(logId, 'info', 'Connecting to IP India eFiling — TLA Queue List...');
+  appendLog(logId, 'info', 'Source: ipindiaonline.gov.in/trademarkefiling/DynamicUtilities/TLA_QueueList_new.aspx');
+  setBar(barId, 20);
+
+  const ok = await checkBackend();
+  let items = [];
+
+  if (ok) {
+    try {
+      appendLog(logId, 'info', 'Fetching queue data from backend...');
+      setBar(barId, 40);
+      let url = '/api/queue-list?';
+      if (username) url += `username=${encodeURIComponent(username)}&`;
+      if (appNo)    url += `app_no=${encodeURIComponent(appNo)}&`;
+      const data = await apiGet(url);
+      setBar(barId, 85);
+      items = data.items || [];
+      appendLog(logId, 'data', `Total in queue: ${data.total}  Pending: ${data.pending}  Overdue: ${data.overdue}  Critical: ${data.critical}`);
+      appendLog(logId, 'ok', `✅ Live data from IP India TLA Queue List — ${items.length} item(s)`);
+    } catch(e) {
+      appendLog(logId, 'err', `Backend error: ${e.message}`);
+      appendLog(logId, 'warn', 'Falling back to demo data...');
+      items = _SAMPLE_QUEUE;
+    }
+  } else {
+    appendLog(logId, 'warn', 'Backend offline — showing demo data.');
+    await new Promise(r => setTimeout(r, 500));
+    items = _SAMPLE_QUEUE;
+  }
+
+  if (username) items = items.filter(i => (i.agent||'').toUpperCase().includes(username.toUpperCase()));
+  if (appNo)    items = items.filter(i => i.app_no === appNo);
+
+  setBar(barId, 100);
+  window._queueData = items;
+  renderQueueResults(items);
+}
+
+function renderQueueResults(items) {
+  const el = document.getElementById('qlResults');
+  if (!items.length) {
+    el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3);">No items found in queue.</div>`;
+    return;
+  }
+
+  const overdue  = items.filter(i => i.urgency === 'overdue').length;
+  const critical = items.filter(i => i.urgency === 'critical').length;
+  const warning  = items.filter(i => i.urgency === 'warning').length;
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        <h3>🗂 ${items.length} Item${items.length!==1?'s':''} in TLA Queue
+          <span style="font-size:11px;font-weight:400;color:var(--teal);margin-left:8px;">IP India eFiling Portal</span>
+        </h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${overdue  ? `<span class="chip" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);">⏰ ${overdue} Overdue</span>` : ''}
+          ${critical ? `<span class="chip" style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);">⚠ ${critical} Critical</span>` : ''}
+          ${warning  ? `<span class="chip" style="background:rgba(250,204,21,.12);color:#fde047;border:1px solid rgba(250,204,21,.3);">🟡 ${warning} Warning</span>` : ''}
+          <button class="topbar-btn" onclick="exportQueuePDF()" style="font-size:11.5px;padding:5px 10px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);">⬇ PDF</button>
+          <button class="topbar-btn" onclick="exportQueueExcel()" style="font-size:11.5px;padding:5px 10px;background:rgba(33,163,70,.12);color:#4ade80;border:1px solid rgba(33,163,70,.25);">⬇ Excel</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <table class="tbl">
+          <thead><tr><th>App No.</th><th>TM / Mark</th><th>Class</th><th>Action Type</th><th>Date Issued</th><th>Agent</th><th>Office</th><th>Reply Status</th><th>Days Left</th></tr></thead>
+          <tbody>
+            ${items.map(i => {
+              const urg = i.urgency || 'ok';
+              const daysLabel = i.days_left != null
+                ? (i.days_left < 0 ? `<span style="color:#f87171;font-weight:700;">${Math.abs(i.days_left)}d overdue</span>`
+                                   : `<span style="color:${i.days_left<=7?'#fbbf24':i.days_left<=15?'#fde047':'var(--teal)';font-weight:${i.days_left<=15?'700':'400'};">${i.days_left}d left</span>`)
+                : '—';
+              const rowStyle = urg==='overdue' ? 'background:rgba(239,68,68,.07);' : urg==='critical' ? 'background:rgba(245,158,11,.07);' : '';
+              return `<tr style="${rowStyle}">
+                <td class="mono"><a href="${i.view_url}" target="_blank" style="color:var(--accent);text-decoration:none;">${i.app_no} ↗</a></td>
+                <td style="font-weight:600;font-size:12px;">${i.tm_name||'—'}</td>
+                <td style="font-size:12px;color:var(--text3);">${i.tm_class||'—'}</td>
+                <td style="font-size:12px;">${i.action_type||'—'}</td>
+                <td class="mono" style="color:var(--amber);font-size:12px;">${i.date||'—'}</td>
+                <td style="font-size:11px;">${i.agent||'—'}</td>
+                <td style="font-size:11px;color:var(--text3);">${i.office||'—'}</td>
+                <td><span class="chip ${i.reply_status==='Pending'?'chip-pending':'chip-teal'}">${i.reply_status||'—'}</span></td>
+                <td>${daysLabel}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  PENDING REPLIES VIEW
+// ══════════════════════════════════════════════════════════
+
+async function fetchPendingReplies() {
+  document.getElementById('pendingResults').innerHTML = `
+    <div style="padding:32px;text-align:center;color:var(--text3);">
+      <div class="spin" style="width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;"></div>
+      Fetching from IP India TLA Queue List...
+    </div>`;
+
+  const ok = await checkBackend();
+  let items = [];
+
+  if (ok) {
+    try {
+      const data = await apiGet('/api/queue-list/pending-replies');
+      items = data.items || [];
+    } catch(e) {
+      items = _SAMPLE_QUEUE.filter(i => i.reply_status === 'Pending');
+    }
+  } else {
+    await new Promise(r => setTimeout(r, 600));
+    items = _SAMPLE_QUEUE.filter(i => i.reply_status === 'Pending');
+  }
+
+  // Sort: overdue first
+  items.sort((a,b) => {
+    const da = a.days_left != null ? a.days_left : 9999;
+    const db = b.days_left != null ? b.days_left : 9999;
+    return da - db;
+  });
+
+  window._pendingData = items;
+
+  // Update stat badges
+  const overdue  = items.filter(i => i.urgency === 'overdue').length;
+  const critical = items.filter(i => i.urgency === 'critical').length;
+  const warning  = items.filter(i => i.urgency === 'warning').length;
+  const total    = items.length;
+
+  document.getElementById('pStat-overdue').textContent  = overdue;
+  document.getElementById('pStat-critical').textContent = critical;
+  document.getElementById('pStat-warning').textContent  = warning;
+  document.getElementById('pStat-total').textContent    = total;
+
+  // Update nav badge
+  const badge = document.getElementById('pendingBadge');
+  if (overdue + critical > 0) {
+    badge.textContent = overdue + critical;
+    badge.style.display = 'inline-flex';
+  }
+
+  renderPendingTable(items);
+}
+
+let _pendingFilter = 'all';
+function filterPendingTab(filter, el) {
+  _pendingFilter = filter;
+  document.querySelectorAll('#pendingTabs .tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  if (!window._pendingData.length) return;
+
+  let filtered = window._pendingData;
+  if (filter === 'examination') filtered = filtered.filter(i => /(examination|fer)/i.test(i.action_type||''));
+  else if (filter === 'opposition') filtered = filtered.filter(i => /opposition/i.test(i.action_type||''));
+  else if (filter === 'sec45') filtered = filtered.filter(i => /sec\s*(45|46)/i.test(i.action_type||''));
+
+  renderPendingTable(filtered);
+}
+
+function renderPendingTable(items) {
+  const el = document.getElementById('pendingResults');
+  if (!items.length) {
+    el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text3);">No pending replies found for this filter.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        <h3>⚠ ${items.length} Pending Repl${items.length!==1?'ies':'y'}</h3>
+        <div style="display:flex;gap:8px;">
+          <button class="topbar-btn" onclick="exportPendingRepliesPDF()" style="font-size:11.5px;padding:5px 10px;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);">⬇ PDF</button>
+          <button class="topbar-btn" onclick="exportPendingRepliesExcel()" style="font-size:11.5px;padding:5px 10px;background:rgba(33,163,70,.12);color:#4ade80;border:1px solid rgba(33,163,70,.25);">⬇ Excel</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <table class="tbl">
+          <thead><tr>
+            <th>App No.</th><th>TM / Mark</th><th>Class</th>
+            <th>Action Required</th><th>Date Issued</th><th>Deadline</th>
+            <th>Days Left</th><th>Agent</th><th>Applicant</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            ${items.map(i => {
+              const dl = i.days_left;
+              const urgency = i.urgency || 'ok';
+              let daysHtml = '—';
+              if (dl != null) {
+                if (dl < 0)        daysHtml = `<span style="color:#f87171;font-weight:800;font-size:13px;">${Math.abs(dl)}d OVERDUE</span>`;
+                else if (dl <= 7)  daysHtml = `<span style="color:#fbbf24;font-weight:700;">${dl}d left ⚡</span>`;
+                else if (dl <= 15) daysHtml = `<span style="color:#fde047;font-weight:600;">${dl}d left</span>`;
+                else               daysHtml = `<span style="color:var(--teal);">${dl}d left</span>`;
+              }
+              const rowStyle = urgency==='overdue'  ? 'background:rgba(239,68,68,.08);border-left:3px solid #ef4444;'
+                             : urgency==='critical' ? 'background:rgba(245,158,11,.07);border-left:3px solid #f59e0b;'
+                             : urgency==='warning'  ? 'background:rgba(250,204,21,.05);border-left:3px solid #facc15;'
+                             : '';
+              // Compute deadline date string
+              let deadlineStr = '—';
+              if (i.date && i.deadline_days) {
+                try {
+                  const parts = i.date.split('/');
+                  const base  = new Date(+parts[2], +parts[1]-1, +parts[0]);
+                  base.setDate(base.getDate() + i.deadline_days);
+                  deadlineStr = base.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+                } catch(_) {}
+              }
+              return `<tr style="${rowStyle}">
+                <td class="mono"><a href="${i.view_url}" target="_blank" style="color:var(--accent);text-decoration:none;">${i.app_no} ↗</a></td>
+                <td style="font-weight:600;font-size:12px;">${i.tm_name||'—'}</td>
+                <td style="font-size:11px;color:var(--text3);">${i.tm_class||'—'}</td>
+                <td style="font-size:12px;">${i.action_type||'—'}</td>
+                <td class="mono" style="font-size:11px;color:var(--text3);">${i.date||'—'}</td>
+                <td class="mono" style="font-size:11px;color:var(--amber);">${deadlineStr}</td>
+                <td style="white-space:nowrap;">${daysHtml}</td>
+                <td style="font-size:11px;">${i.agent||'—'}</td>
+                <td style="font-size:11px;max-width:160px;">${i.applicant||'—'}</td>
+                <td><span class="chip chip-pending">${i.reply_status||'Pending'}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        <div style="padding:10px 16px;font-size:11.5px;color:var(--text3);border-top:1px solid var(--border);">
+          ⚖ Deadlines: Examination Report — 30 days · Opposition Reply — 60 days · Sec 45/46 — 60 days from notice date.
+          For exact legal deadlines, always verify on <a href="https://ipindiaonline.gov.in" target="_blank" style="color:var(--accent);">ipindiaonline.gov.in</a>.
+        </div>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  EXPORT HELPERS  (PDF & Excel via backend)
+// ══════════════════════════════════════════════════════════
+
+async function _triggerExport(fmt, apps, title) {
+  if (!apps || !apps.length) {
+    showToast('exportToast', '⚠ No data to export — fetch records first.', 3000);
+    return;
+  }
+  const ok = await checkBackend();
+  if (!ok) {
+    showToast('exportToast', '🔴 Backend offline — start Flask server to export files.', 4000);
+    // Fallback: export as JSON/CSV in browser
+    _clientSideCSV(apps, title);
+    return;
+  }
+  try {
+    showToast('exportToast', `⏳ Generating ${fmt.toUpperCase()} report...`, 2000);
+    const r = await fetch(`${API_BASE}/api/export/${fmt}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apps, title }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ext  = fmt === 'pdf' ? 'pdf' : 'xlsx';
+    a.href     = url;
+    a.download = `MarkShield_Report_${new Date().toISOString().slice(0,10)}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('exportToast', `✅ ${fmt.toUpperCase()} report downloaded!`, 3000);
+  } catch(e) {
+    showToast('exportToast', `❌ Export error: ${e.message}`, 4000);
+    _clientSideCSV(apps, title);
+  }
+}
+
+function _clientSideCSV(apps, title) {
+  // Fallback: download as CSV when backend unavailable
+  const cols = ['app_no','tm_name','tm_class','applicant','status','filing_date','hearing_date','agent','days_left','urgency'];
+  const hdr  = cols.join(',');
+  const rows = apps.map(a => cols.map(c => `"${(a[c]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv  = [hdr, ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `MarkShield_Report_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('exportToast', '📄 Exported as CSV (backend offline)', 3000);
+}
+
+// Demo portfolio data for export (merged with any live fetched data)
+function _getPortfolioApps() {
+  return window._lastFetchedHearings
+    ? window._lastFetchedHearings.map(h => ({
+        app_no: h.appNo, tm_name: h.applicant, status: h.status,
+        hearing_date: h.date, agent: h.agent,
+      }))
+    : [
+        {app_no:'5847291',tm_name:'FRESHMART',tm_class:'29',applicant:'Fresh Mart Pvt Ltd',status:'Objected',filing_date:'15/01/2023',hearing_date:'01 Apr 2026',agent:'LALJI ADVOCATES'},
+        {app_no:'5821043',tm_name:'INDIGO NEST',tm_class:'43',applicant:'Indigo Hospitality',status:'Pending',filing_date:'02/03/2023',hearing_date:'—',agent:'LALJI ADVOCATES'},
+        {app_no:'6141022',tm_name:'SWISS BEAUTY',tm_class:'3',applicant:'Swiss Beauty Cosmetics',status:'Registered',filing_date:'10/06/2022',hearing_date:'—',agent:'LALJI ADVOCATES'},
+      ];
+}
+
+// Export functions
+function exportPortfolioPDF()   { _triggerExport('pdf',   _getPortfolioApps(),    'Portfolio Summary Report'); }
+function exportPortfolioExcel() { _triggerExport('excel', _getPortfolioApps(),    'Portfolio Summary Report'); }
+function exportHearingsPDF()    { _triggerExport('pdf',   window._lastFetchedHearings || _getPortfolioApps(), 'Hearing Calendar Report'); }
+function exportHearingsExcel()  { _triggerExport('excel', window._lastFetchedHearings || _getPortfolioApps(), 'Hearing Calendar Report'); }
+function exportPendingRepliesPDF()   { _triggerExport('pdf',   window._pendingData.length ? window._pendingData : _SAMPLE_QUEUE, 'Pending Replies Report'); }
+function exportPendingRepliesExcel() { _triggerExport('excel', window._pendingData.length ? window._pendingData : _SAMPLE_QUEUE, 'Pending Replies Report'); }
+function exportQueuePDF()   { _triggerExport('pdf',   window._queueData.length  ? window._queueData  : _SAMPLE_QUEUE, 'TLA Queue List Report'); }
+function exportQueueExcel() { _triggerExport('excel', window._queueData.length  ? window._queueData  : _SAMPLE_QUEUE, 'TLA Queue List Report'); }
+
+async function exportCustomPDF() {
+  const nos = document.getElementById('exportAppNos').value.trim();
+  if (!nos) { showToast('exportToast','⚠ Enter at least one application number.',3000); return; }
+  const appNos = nos.split(/[,\s]+/).filter(Boolean);
+  showToast('exportToast','⏳ Fetching application data...', 2000);
+  const ok = await checkBackend();
+  let apps = [];
+  if (ok) {
+    try {
+      const data = await apiPost('/api/applications/bulk', { app_nos: appNos });
+      apps = (data.results || []).map(r => ({
+        app_no: r.app_no, tm_name: r.trademark_name||'—', tm_class: r.tm_class||'—',
+        applicant: r.applicant||'—', status: r.status||'—',
+        filing_date: r.filing_date||'—', hearing_date: r.hearing_date||'—',
+        agent: r.agent||'—', exam_report_date: r.exam_report_date||'—',
+      }));
+    } catch(e) { apps = appNos.map(no => ({ app_no: no, status: 'See IP India' })); }
+  } else {
+    apps = appNos.map(no => ({ app_no: no, status: 'See IP India — backend offline' }));
+  }
+  _triggerExport('pdf', apps, `TM Report — ${appNos.join(', ')}`);
+}
+async function exportCustomExcel() {
+  const nos = document.getElementById('exportAppNos').value.trim();
+  if (!nos) { showToast('exportToast','⚠ Enter at least one application number.',3000); return; }
+  const appNos = nos.split(/[,\s]+/).filter(Boolean);
+  showToast('exportToast','⏳ Fetching application data...', 2000);
+  const ok = await checkBackend();
+  let apps = [];
+  if (ok) {
+    try {
+      const data = await apiPost('/api/applications/bulk', { app_nos: appNos });
+      apps = (data.results || []).map(r => ({
+        app_no: r.app_no, tm_name: r.trademark_name||'—', tm_class: r.tm_class||'—',
+        applicant: r.applicant||'—', status: r.status||'—',
+        filing_date: r.filing_date||'—', hearing_date: r.hearing_date||'—',
+        agent: r.agent||'—', exam_report_date: r.exam_report_date||'—',
+      }));
+    } catch(e) { apps = appNos.map(no => ({ app_no: no, status: 'See IP India' })); }
+  } else {
+    apps = appNos.map(no => ({ app_no: no, status: 'See IP India — backend offline' }));
+  }
+  _triggerExport('excel', apps, `TM Report — ${appNos.join(', ')}`);
+}
+
+// ── toast for export feedback ──
+(function ensureExportToast() {
+  if (!document.getElementById('exportToast')) {
+    const el = document.createElement('div');
+    el.id = 'exportToast';
+    el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a2035;border:1px solid #2a3555;color:#e2e8f8;padding:12px 18px;border-radius:10px;font-size:13px;font-family:inherit;z-index:9999;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);';
+    document.body.appendChild(el);
+  }
+})();
+function showExportToast(msg, dur=3000) {
+  const el = document.getElementById('exportToast');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display='none', dur);
 }
 
 </script>
