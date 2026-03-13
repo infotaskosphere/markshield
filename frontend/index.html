@@ -261,6 +261,7 @@
 
 /* Screen toggle */
 .app-shell-wrapper { display: none; }
+.app-shell-wrapper.visible { display: flex; height: 100vh; overflow: hidden; position: relative; z-index: 1; }
 </style>
 :root {
   --bg: #06080f;
@@ -285,6 +286,35 @@
   --r: 10px;
   --r2: 14px;
 }
+/* ── LIGHT THEME ── */
+html.light {
+  --bg: #f0f2f8;
+  --s1: #ffffff;
+  --s2: #f4f6fb;
+  --s3: #e8ecf5;
+  --border: #d8dff0;
+  --border2: #c0cae0;
+  --accent: #2563ff;
+  --accent-g: #1a47d4;
+  --teal: #00a882;
+  --amber: #d97706;
+  --rose: #e02444;
+  --violet: #7c3aed;
+  --sky: #0284c7;
+  --text: #0f172a;
+  --text2: #334155;
+  --text3: #64748b;
+}
+html.light body { background: var(--bg); }
+html.light .topbar { background: rgba(255,255,255,.95); }
+html.light .auth-screen { background: #e8ecf5; }
+html.light .auth-box { background: rgba(255,255,255,.98); border-color: var(--border); box-shadow: 0 12px 48px rgba(0,0,0,.12); }
+html.light .auth-input { background: #f8faff; color: var(--text); border-color: var(--border); }
+html.light .auth-input::placeholder { color: #94a3b8; }
+html.light .tma-fetch-log { background: #f0f4ff; }
+html.light .msg-bubble { background: var(--s2); }
+html.light .chat-shell { background: var(--s1); }
+html.light body::after { opacity: 0; }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
 body{background:var(--bg);color:var(--text);font-family:var(--head);min-height:100vh;overflow-x:hidden;}
@@ -955,6 +985,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
         <input type="text" placeholder="Search trademarks, classes, clients...">
       </div>
       <button class="topbar-btn btn-primary" onclick="openModal('addModal')">+ Add Trademark</button>
+      <button class="topbar-btn btn-ghost" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode" style="width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🌙</button>
       <div class="notif-btn" onclick="show('monitoring')">🔔<div class="notif-dot"></div></div>
     </div>
   </div>
@@ -1928,26 +1959,21 @@ function showTMAPreview(data, code) {
 }
 
 function enterApp() {
+  // Delegates to the patched version defined below (or calls directly if patch not loaded yet)
+  if (window._patchedEnterApp) { window._patchedEnterApp(); return; }
   const tmaScreenEl = document.getElementById('tmaScreen');
   if (tmaScreenEl) tmaScreenEl.style.display = 'none';
   const appShell = document.getElementById('appShell');
-  if (appShell) appShell.style.display = 'block';
-
-  // Personalize with null-safe helper
+  if (appShell) { appShell.style.display = ''; appShell.classList.add('visible'); }
   const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  const name = (tmaData && tmaData.name) || (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'Attorney';
+  const name = (tmaData && tmaData.name) || (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'Demo Attorney';
   const firstName = name.split(' ')[0];
   const hearings = (tmaData && tmaData.hearings) || 0;
-  const role = (agentProfile && agentProfile.firmName) ? `IP Attorney · ${agentProfile.firmName}` : 'IP Attorney · Pro Plan';
   _set('topbarGreeting', `Welcome back, ${firstName} — ${hearings} hearings scheduled`);
   _set('pageSubEl', `Welcome back, ${firstName} — ${hearings} hearings this week`);
   _set('sidebarUserName', name);
-  _set('sidebarUserRole', role);
+  _set('sidebarUserRole', 'IP Attorney · Pro Plan');
   _set('sidebarUserInit', name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase());
-
-  // Auto-send "setup complete" reminder to agent (deferred so DOM is ready)
-  setTimeout(() => triggerAutoReminder('Setup complete! Hearing sync is active.'), 1500);
-  if (gcalConnected) setTimeout(() => autoSyncHearingsToCalendar(), 2000);
 }
 
 // ════════════════════════════════════════
@@ -2172,20 +2198,24 @@ function sendApplicantEmail() {
 
 // Auto reminder to agent (simulates auto-email from platform)
 function triggerAutoReminder(message) {
-  const agentEmail = agentProfile.email;
-  if (!agentEmail) return;
-  // In production: POST to /api/notify/auto-remind with message + agentEmail
-  console.log(`[MarkShield] AUTO REMINDER to ${agentEmail}: ${message}`);
-  showToast('autoEmailToast', `📧 Auto-sent to ${agentEmail.split('@')[0]}`, 2800);
+  try {
+    const agentEmail = (agentProfile && agentProfile.email) || '';
+    // In production: POST to /api/notify/auto-remind with message + agentEmail
+    console.log(`[MarkShield] AUTO REMINDER${agentEmail ? ' to ' + agentEmail : ''}: ${message}`);
+    if (agentEmail) showToast('autoEmailToast', `📧 Auto-sent to ${agentEmail.split('@')[0]}`, 2800);
+  } catch(e) { console.warn('[MarkShield] triggerAutoReminder error:', e); }
 }
 
 function showToast(id, msg, dur) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = msg;
-  el.style.display = 'block';
-  el.style.animation = 'toastIn .4s ease';
-  setTimeout(() => { el.style.display = 'none'; }, dur || 3000);
+  try {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.style.animation = 'none';
+    requestAnimationFrame(() => { el.style.animation = 'toastIn .4s ease'; });
+    setTimeout(() => { if (el) el.style.display = 'none'; }, dur || 3000);
+  } catch(e) {}
 }
 
 // Auto-trigger calendar sync when cause list is fetched
@@ -3070,5 +3100,67 @@ function renderPendingInvites() {
 // Render on load
 renderTeam();
 renderPendingInvites();
+
+
+// ════════════════════════════════════════
+//  DARK / LIGHT THEME
+// ════════════════════════════════════════
+(function() {
+  const saved = localStorage.getItem('ms_theme') || 'dark';
+  if (saved === 'light') document.documentElement.classList.add('light');
+})();
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('ms_theme', isLight ? 'light' : 'dark');
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+}
+
+// Set correct icon on load
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = document.documentElement.classList.contains('light') ? '☀️' : '🌙';
+});
+
+// ════════════════════════════════════════
+//  SKIP → DIRECTLY ENTER APP (demo mode)
+// ════════════════════════════════════════
+// Patch: make sure skip works from any step
+const _origEnterApp = window.enterApp;
+// Ensure enterApp always sets demo data if nothing loaded
+const _patchedEnterApp = function() {
+  // Set demo tmaData if none
+  if (!tmaData) {
+    tmaData = {
+      name: (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'Demo Attorney',
+      state: 'Gujarat', city: 'Surat', barNo: 'DEMO',
+      total: 24, registered: 17, hearings: 5, pending: 4, objected: 2, refused: 1, clients: 12,
+    };
+  }
+  const tmaScreenEl = document.getElementById('tmaScreen');
+  if (tmaScreenEl) tmaScreenEl.style.display = 'none';
+  const loginScreenEl = document.getElementById('loginScreen');
+  if (loginScreenEl) loginScreenEl.style.display = 'none';
+
+  const appShell = document.getElementById('appShell');
+  if (appShell) { appShell.style.display = ''; appShell.classList.add('visible'); }
+
+  const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const name = (tmaData && tmaData.name) || (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'Attorney';
+  const firstName = name.split(' ')[0];
+  const hearings = (tmaData && tmaData.hearings) || 0;
+  const role = (agentProfile && agentProfile.firmName) ? `IP Attorney · ${agentProfile.firmName}` : 'IP Attorney · Pro Plan';
+  _set('topbarGreeting', `Welcome back, ${firstName} — ${hearings} hearings scheduled`);
+  _set('pageSubEl', `Welcome back, ${firstName} — ${hearings} hearings this week`);
+  _set('sidebarUserName', name);
+  _set('sidebarUserRole', role);
+  _set('sidebarUserInit', name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase());
+
+  setTimeout(() => { try { triggerAutoReminder('Setup complete! Hearing sync is active.'); } catch(e){} }, 1500);
+  if (gcalConnected) setTimeout(() => { try { autoSyncHearingsToCalendar(); } catch(e){} }, 2000);
+};
+window.enterApp = _patchedEnterApp;
+window._patchedEnterApp = _patchedEnterApp;
 
 </script>
