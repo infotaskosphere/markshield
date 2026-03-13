@@ -760,13 +760,13 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
       <div class="auth-sub">Link your IP India TMA code to automatically import your portfolio, hearings, and status updates.</div>
       <div class="tma-info-box">
         🔑 <b>What is a TMA Code?</b><br>
-        Your unique identifier issued by CGPDTM. Format: <b>TMA/XX/NNNN</b> (e.g. TMA/GJ/2847 for Gujarat).
+        Your unique identifier issued by CGPDTM to registered trademark attorneys. This is typically a <b>numeric code</b> (e.g. <b>25092</b>) or in the format <b>TMA/XX/NNNN</b> (e.g. TMA/GJ/2847). Enter exactly as shown in your CGPDTM registration certificate.
       </div>
       <div class="auth-field">
         <label>TMA Attorney Code <span style="color:#f43f5e;">*</span></label>
         <div class="auth-field-wrap">
           <span class="auth-field-icon">⚖️</span>
-          <input class="auth-input mono" id="tmaCodeInput" type="text" placeholder="e.g. TMA/GJ/2847" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doTMAFetch()">
+          <input class="auth-input mono" id="tmaCodeInput" type="text" placeholder="e.g. 25092 or TMA/GJ/2847" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doTMAFetch()">
         </div>
       </div>
       <div class="auth-field">
@@ -793,7 +793,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
         </button>
       </div>
       <div style="margin-top:12px;text-align:center;font-size:12px;color:#4b5880;">
-        Demo TMA: <span style="color:#7aa3ff;font-family:'JetBrains Mono',monospace;">TMA/GJ/2847</span> · Any password
+        Demo TMA: <span style="color:#7aa3ff;font-family:'JetBrains Mono',monospace;">TMA/GJ/2847</span> or <span style="color:#7aa3ff;font-family:'JetBrains Mono',monospace;">25092</span> · Any password
         &nbsp;|&nbsp; <span style="cursor:pointer;text-decoration:underline;" onclick="goToStep4()">Skip sync →</span>
       </div>
     </div>
@@ -1583,6 +1583,8 @@ function goToStep3() {
   // Pre-fill notification email
   document.getElementById('notifAgentEmail').value = email;
   setStepUI(3);
+  // Clear any lingering error message
+  const e = document.getElementById('tmaError'); e.style.display='none'; e.textContent='❌ Please fill all required fields correctly.';
 }
 
 function goToStep4() {
@@ -1654,6 +1656,14 @@ function doLogin() {
 
 // ── TMA FETCH ──
 const TMA_CODES = {
+  '25092': {
+    name: 'Rajesh Sharma',
+    state: 'Gujarat',
+    city: 'Surat',
+    barNo: '25092',
+    total: 24, registered: 17, hearings: 5, pending: 4, objected: 2, refused: 1,
+    clients: 12,
+  },
   'TMA/GJ/2847': {
     name: 'Rajesh Sharma',
     state: 'Gujarat',
@@ -1704,8 +1714,9 @@ function doTMAFetch() {
   const btn   = document.getElementById('tmaFetchBtn');
   errEl.style.display = 'none';
 
-  // Validate format TMA/XX/NNNN
-  if (!/^TMA\/[A-Z]{2,3}\/\d{3,6}$/.test(code)) {
+  // Accept: numeric codes (e.g. 25092), TMA/XX/NNNN, or any non-empty code
+  if (!code || code.length < 3) {
+    errEl.textContent = '❌ Please enter your TMA attorney code (e.g. 25092 or TMA/GJ/2847).';
     errEl.style.display = 'block';
     return;
   }
@@ -1715,13 +1726,18 @@ function doTMAFetch() {
     return;
   }
 
-  const data = TMA_CODES[code];
-  if (!data && !code) { errEl.style.display = 'block'; return; }
-  // Use matched data or generate from code
-  tmaData = data || {
-    name: currentUser ? currentUser.name : 'Attorney',
-    state: code.split('/')[1], city: 'India',
-    barNo: code, total: 0, registered: 0, hearings: 0, pending: 0, objected: 0, refused: 0, clients: 0,
+  // Look up in known demo codes, or build from agent profile
+  const data = TMA_CODES[code] || TMA_CODES['TMA/GJ/2847']; // fallback for demo
+  const agentName = (agentProfile && agentProfile.fullName) || (currentUser && currentUser.name) || 'Attorney';
+  const agentCity  = (agentProfile && agentProfile.city)  || 'India';
+  const agentState = (agentProfile && agentProfile.state) || (code.includes('/') ? code.split('/')[1] : '');
+  // Use matched data, or build from agent profile filled in Step 2
+  tmaData = TMA_CODES[code] || {
+    name:       agentName,
+    state:      agentState,
+    city:       agentCity,
+    barNo:      (agentProfile && agentProfile.barNo) || code,
+    total: 0, registered: 0, hearings: 0, pending: 0, objected: 0, refused: 0, clients: 0,
   };
 
   btn.classList.add('loading'); btn.disabled = true;
