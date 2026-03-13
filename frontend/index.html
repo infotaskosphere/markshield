@@ -625,62 +625,276 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
   </div>
 </div>
 
-<!-- ══════ SCREEN 2: TMA CODE ══════ -->
+<!-- ══════ SCREEN 2: TMA AGENT REGISTRATION (Multi-step) ══════ -->
 <div class="auth-screen" id="tmaScreen" style="display:none;">
-  <div class="auth-box" style="width:500px;max-width:calc(100vw - 32px);">
+  <div class="auth-box" style="width:580px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;">
     <div class="auth-logo">
       <div class="auth-logo-mark">M</div>
       <div>
         <div class="auth-logo-name">Mark<em>Shield</em></div>
-        <div class="auth-logo-tag">Portfolio Setup — Step 2 of 2</div>
+        <div class="auth-logo-tag">Agent Registration &amp; Portfolio Setup</div>
       </div>
     </div>
-    <div class="tma-step-indicator">
-      <div class="tma-step done"><div class="step-num">✓</div> Login</div>
+
+    <!-- Step Indicator -->
+    <div class="tma-step-indicator" id="tmaStepIndicator">
+      <div class="tma-step done" id="sInd1"><div class="step-num">✓</div> Login</div>
       <div class="tma-step-line"></div>
-      <div class="tma-step active"><div class="step-num">2</div> TMA Code &amp; Data Sync</div>
+      <div class="tma-step active" id="sInd2"><div class="step-num">2</div> Agent Profile</div>
+      <div class="tma-step-line"></div>
+      <div class="tma-step" id="sInd3"><div class="step-num">3</div> TMA &amp; Sync</div>
+      <div class="tma-step-line"></div>
+      <div class="tma-step" id="sInd4"><div class="step-num">4</div> Notifications</div>
     </div>
-    <div class="auth-title">Connect your TMA Code</div>
-    <div class="auth-sub">Enter your IP India Trademark Attorney Code to automatically import your entire portfolio — all hearings, filings, objections, and status updates.</div>
-    <div class="tma-info-box">
-      🔑 <b>What is a TMA Code?</b><br>
-      Your unique identifier issued by CGPDTM to registered trademark attorneys. Format: <b>TMA/XX/NNNN</b> (e.g. TMA/GJ/2847 for Gujarat). Used to link all your client filings on IP India.
-    </div>
-    <div class="auth-error" id="tmaError">❌ Invalid TMA code. Check format: TMA/XX/NNNN (e.g. TMA/GJ/2847)</div>
-    <div class="auth-field">
-      <label>TMA Attorney Code</label>
-      <div class="auth-field-wrap">
-        <span class="auth-field-icon">⚖️</span>
-        <input class="auth-input mono" id="tmaCodeInput" type="text" placeholder="e.g. TMA/GJ/2847" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doTMAFetch()">
+
+    <div class="auth-error" id="tmaError">❌ Please fill all required fields correctly.</div>
+
+    <!-- ── STEP 2: Agent Profile ── -->
+    <div id="tmaStep2">
+      <div class="auth-title">TM Agent Profile</div>
+      <div class="auth-sub">Enter your complete professional details. This information will be used for email reminders and calendar invites.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="auth-field">
+          <label>Full Name <span style="color:#f43f5e;">*</span></label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">👤</span>
+            <input class="auth-input" id="agentFullName" type="text" placeholder="e.g. Rajesh Sharma">
+          </div>
+        </div>
+        <div class="auth-field">
+          <label>Firm / Organisation Name</label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">🏢</span>
+            <input class="auth-input" id="agentFirmName" type="text" placeholder="e.g. Sharma IP Associates">
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="auth-field">
+          <label>Professional Email <span style="color:#f43f5e;">*</span></label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">📧</span>
+            <input class="auth-input" id="agentEmail" type="email" placeholder="rajesh@firmname.com">
+          </div>
+        </div>
+        <div class="auth-field">
+          <label>Mobile Number <span style="color:#f43f5e;">*</span></label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">📱</span>
+            <input class="auth-input" id="agentMobile" type="tel" placeholder="+91 98765 43210">
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="auth-field">
+          <label>Alternate Phone</label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">☎️</span>
+            <input class="auth-input" id="agentPhone" type="tel" placeholder="Office landline">
+          </div>
+        </div>
+        <div class="auth-field">
+          <label>Bar Council / Enrolment No.</label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">⚖️</span>
+            <input class="auth-input mono" id="agentBarNo" type="text" placeholder="e.g. GJ/2847/2012">
+          </div>
+        </div>
+      </div>
+      <div class="auth-field">
+        <label>Office Address</label>
+        <div class="auth-field-wrap">
+          <span class="auth-field-icon" style="top:14px;transform:none;">📍</span>
+          <textarea class="auth-input" id="agentAddress" style="padding-left:40px;resize:vertical;min-height:64px;" placeholder="Full office address including street, area..."></textarea>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="auth-field">
+          <label>City <span style="color:#f43f5e;">*</span></label>
+          <input class="auth-input" id="agentCity" type="text" placeholder="Surat" style="padding-left:14px;">
+        </div>
+        <div class="auth-field">
+          <label>State <span style="color:#f43f5e;">*</span></label>
+          <select class="auth-input" id="agentState" style="padding-left:14px;">
+            <option value="">Select State</option>
+            <option>Gujarat</option><option>Maharashtra</option><option>Delhi</option>
+            <option>Karnataka</option><option>Tamil Nadu</option><option>Rajasthan</option>
+            <option>Uttar Pradesh</option><option>West Bengal</option><option>Telangana</option>
+            <option>Kerala</option><option>Punjab</option><option>Madhya Pradesh</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="auth-field">
+          <label>PIN Code</label>
+          <input class="auth-input mono" id="agentPin" type="text" placeholder="395001" style="padding-left:14px;" maxlength="6">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="auth-field">
+          <label>IP India Username / Email</label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">🌐</span>
+            <input class="auth-input" id="agentPortalUser" type="text" placeholder="ipindia.gov.in login">
+          </div>
+        </div>
+        <div class="auth-field">
+          <label>Years of Practice</label>
+          <div class="auth-field-wrap">
+            <span class="auth-field-icon">📅</span>
+            <input class="auth-input" id="agentYears" type="number" min="0" max="50" placeholder="e.g. 8">
+          </div>
+        </div>
+      </div>
+      <button class="auth-btn" onclick="goToStep3()">
+        <span class="btn-text">Continue to TMA Code Setup →</span>
+        <div class="btn-loader"></div>
+      </button>
+      <div style="margin-top:14px;text-align:center;font-size:12px;color:#4b5880;">
+        <span style="cursor:pointer;text-decoration:underline;" onclick="enterApp()">Skip setup and use demo →</span>
       </div>
     </div>
-    <div class="auth-field">
-      <label>IP India Portal Password</label>
-      <div class="auth-field-wrap">
-        <span class="auth-field-icon">🔐</span>
-        <input class="auth-input" id="tmaPortalPass" type="password" placeholder="Your ipindia.gov.in login password">
+
+    <!-- ── STEP 3: TMA Code & Sync ── -->
+    <div id="tmaStep3" style="display:none;">
+      <div class="auth-title">Connect TMA Code &amp; Sync Portfolio</div>
+      <div class="auth-sub">Link your IP India TMA code to automatically import your portfolio, hearings, and status updates.</div>
+      <div class="tma-info-box">
+        🔑 <b>What is a TMA Code?</b><br>
+        Your unique identifier issued by CGPDTM. Format: <b>TMA/XX/NNNN</b> (e.g. TMA/GJ/2847 for Gujarat).
+      </div>
+      <div class="auth-field">
+        <label>TMA Attorney Code <span style="color:#f43f5e;">*</span></label>
+        <div class="auth-field-wrap">
+          <span class="auth-field-icon">⚖️</span>
+          <input class="auth-input mono" id="tmaCodeInput" type="text" placeholder="e.g. TMA/GJ/2847" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doTMAFetch()">
+        </div>
+      </div>
+      <div class="auth-field">
+        <label>IP India Portal Password <span style="color:#f43f5e;">*</span></label>
+        <div class="auth-field-wrap">
+          <span class="auth-field-icon">🔐</span>
+          <input class="auth-input" id="tmaPortalPass" type="password" placeholder="Your ipindia.gov.in login password">
+        </div>
+      </div>
+      <button class="auth-btn" id="tmaFetchBtn" onclick="doTMAFetch()">
+        <span class="btn-text">🔄 Fetch My Portfolio from IP India</span>
+        <div class="btn-loader"></div>
+      </button>
+      <div class="tma-fetch-progress" id="tmaFetchProgress">
+        <div class="tma-progress-bar" style="margin-top:14px;"><div class="tma-progress-fill" id="tmaProgressFill"></div></div>
+        <div class="tma-fetch-log" id="tmaFetchLog"></div>
+      </div>
+      <div class="tma-fetched-preview" id="tmaFetchedPreview">
+        <div class="tma-attorney-card" id="tmaAttorneyCard"></div>
+        <div class="tma-preview-grid" id="tmaPreviewGrid"></div>
+        <button class="auth-btn" onclick="goToStep4()" style="background:linear-gradient(135deg,#00c897,#2563ff);">
+          <span class="btn-text">✅ Continue to Notification Setup →</span>
+          <div class="btn-loader"></div>
+        </button>
+      </div>
+      <div style="margin-top:12px;text-align:center;font-size:12px;color:#4b5880;">
+        Demo TMA: <span style="color:#7aa3ff;font-family:'JetBrains Mono',monospace;">TMA/GJ/2847</span> · Any password
+        &nbsp;|&nbsp; <span style="cursor:pointer;text-decoration:underline;" onclick="goToStep4()">Skip sync →</span>
       </div>
     </div>
-    <button class="auth-btn" id="tmaFetchBtn" onclick="doTMAFetch()">
-      <span class="btn-text">🔄 Fetch My Portfolio from IP India</span>
-      <div class="btn-loader"></div>
-    </button>
-    <div class="tma-fetch-progress" id="tmaFetchProgress">
-      <div class="tma-progress-bar" style="margin-top:14px;"><div class="tma-progress-fill" id="tmaProgressFill"></div></div>
-      <div class="tma-fetch-log" id="tmaFetchLog"></div>
-    </div>
-    <div class="tma-fetched-preview" id="tmaFetchedPreview">
-      <div class="tma-attorney-card" id="tmaAttorneyCard"></div>
-      <div class="tma-preview-grid" id="tmaPreviewGrid"></div>
-      <button class="auth-btn" onclick="enterApp()" style="background:linear-gradient(135deg,#00c897,#2563ff);">
-        <span class="btn-text">✅ Enter MarkShield Dashboard →</span>
+
+    <!-- ── STEP 4: Notifications & Google Calendar ── -->
+    <div id="tmaStep4" style="display:none;">
+      <div class="auth-title">Notification &amp; Calendar Setup</div>
+      <div class="auth-sub">Configure how MarkShield sends automated reminders to you and your clients.</div>
+
+      <!-- Google Calendar Integration -->
+      <div class="tma-info-box" style="border-color:rgba(66,133,244,.35);background:rgba(66,133,244,.07);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:20px;">📅</span>
+          <div>
+            <b style="color:#7aa3ff;">Google Calendar Auto-Sync</b>
+            <div style="font-size:11.5px;margin-top:2px;">Every hearing date fetched by the scraper is automatically added as a Google Calendar event with reminders.</div>
+          </div>
+        </div>
+        <div id="gcalConnectArea">
+          <button class="auth-btn" id="gcalConnectBtn" onclick="connectGoogleCalendar()" style="background:linear-gradient(135deg,#4285f4,#34a853);margin-top:8px;padding:11px;">
+            <span class="btn-text" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Connect Google Calendar
+            </span>
+            <div class="btn-loader"></div>
+          </button>
+        </div>
+        <div id="gcalConnected" style="display:none;">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(52,168,83,.12);border:1px solid rgba(52,168,83,.3);border-radius:8px;margin-top:8px;">
+            <span style="color:#34a853;font-size:16px;">✅</span>
+            <div>
+              <div style="font-size:13px;color:#34a853;font-weight:600;">Google Calendar Connected</div>
+              <div style="font-size:11px;color:#4b5880;" id="gcalAccountLabel">Hearings will auto-sync to your calendar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gmail Reminders -->
+      <div class="tma-info-box" style="border-color:rgba(234,67,53,.3);background:rgba(234,67,53,.06);margin-top:0;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:20px;">📧</span>
+          <div>
+            <b style="color:#f87171;">Gmail Reminder Settings</b>
+            <div style="font-size:11.5px;margin-top:2px;">Automated emails are sent from your registered email for all events.</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="auth-field" style="margin-bottom:0;">
+            <label style="font-size:10px;">Agent Email (Auto-Send From)</label>
+            <input class="auth-input" id="notifAgentEmail" type="email" placeholder="your@email.com" style="font-size:12px;" readonly>
+          </div>
+          <div class="auth-field" style="margin-bottom:0;">
+            <label style="font-size:10px;">Reminder Lead Time</label>
+            <select class="auth-input" id="notifLeadTime" style="font-size:12px;padding-left:12px;">
+              <option value="1">1 day before</option>
+              <option value="3" selected>3 days before</option>
+              <option value="5">5 days before</option>
+              <option value="7">7 days before</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notification Event Settings -->
+      <div style="background:rgba(12,16,24,.6);border:1px solid #1a2035;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:600;color:#94a3c8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;">Auto-Notifications (Agent Receives Automatically)</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="notifHearing" checked style="accent-color:#2563ff;width:15px;height:15px;">
+            <span>🏛 Hearing Scheduled / Date Change</span>
+            <span style="margin-left:auto;font-size:11px;color:#4b5880;">Gmail + Calendar</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="notifObjection" checked style="accent-color:#2563ff;width:15px;height:15px;">
+            <span>⚠️ New Examination Report / Objection</span>
+            <span style="margin-left:auto;font-size:11px;color:#4b5880;">Gmail + Calendar</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="notifAdjournment" checked style="accent-color:#2563ff;width:15px;height:15px;">
+            <span>🔄 Hearing Adjournment / Rescheduling</span>
+            <span style="margin-left:auto;font-size:11px;color:#4b5880;">Gmail + Calendar</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="notifStatus" checked style="accent-color:#2563ff;width:15px;height:15px;">
+            <span>📊 Status Change (Registered / Refused)</span>
+            <span style="margin-left:auto;font-size:11px;color:#4b5880;">Gmail only</span>
+          </label>
+        </div>
+      </div>
+
+      <div style="background:rgba(37,99,255,.06);border:1px solid rgba(37,99,255,.2);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#94a3c8;line-height:1.7;">
+        📌 <b style="color:#7aa3ff;">Applicant email reminders</b> are sent <b>manually</b> — you'll see a "Send Email" button on each trademark event in the dashboard.
+      </div>
+
+      <button class="auth-btn" onclick="finishSetup()" style="background:linear-gradient(135deg,#00c897,#2563ff);">
+        <span class="btn-text">🚀 Launch MarkShield Dashboard →</span>
         <div class="btn-loader"></div>
       </button>
     </div>
-    <div style="margin-top:16px;text-align:center;font-size:12px;color:#4b5880;">
-      Demo TMA: <span style="color:#7aa3ff;font-family:'JetBrains Mono',monospace;">TMA/GJ/2847</span> · Any password works
-      &nbsp;|&nbsp; <span style="cursor:pointer;color:#4b5880;text-decoration:underline;" onclick="enterApp()">Skip setup →</span>
-    </div>
+
   </div>
 </div>
 
@@ -1071,7 +1285,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
           <div class="sec-head"><div class="sec-title">Upcoming Deadlines</div></div>
           <div class="upcoming-list" id="upcomingList"></div>
           <div style="margin-top:16px;">
-            <button class="topbar-btn btn-primary" style="width:100%;justify-content:center;" onclick="openModal('reminderModal')">+ Add Custom Reminder</button>
+            <button class="topbar-btn btn-primary" style="width:100%;justify-content:center;" onclick="openGcalModal()">+ Add Custom Reminder</button>
           </div>
         </div>
       </div>
@@ -1228,6 +1442,78 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
   </div>
 </div>
 
+<!-- ══ SEND EMAIL TO APPLICANT MODAL ══ -->
+<div class="overlay" id="sendEmailModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">📧 Send Reminder Email to Applicant</div>
+    <div class="modal-sub" id="sendEmailModalSub">Manual reminder for hearing / status event</div>
+    <div style="background:rgba(37,99,255,.07);border:1px solid rgba(37,99,255,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#7aa3ff;">
+      ⚡ Auto-sent to you (TM Agent) · Manual send to applicant required
+    </div>
+    <div class="mf">
+      <label>Event Type</label>
+      <select id="emailEventType" onchange="updateEmailTemplate()">
+        <option value="hearing">🏛 Hearing Date Scheduled</option>
+        <option value="objection">⚠️ Examination Report / Objection</option>
+        <option value="adjournment">🔄 Hearing Adjourned / Rescheduled</option>
+        <option value="status_change">📊 Status Change</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="mf"><label>Trademark Name</label><input type="text" id="emailTmName" placeholder="e.g. FRESHMART"></div>
+      <div class="mf"><label>Application No.</label><input type="text" id="emailAppNo" class="mono" placeholder="e.g. 5847291"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="mf"><label>Applicant Name</label><input type="text" id="emailApplicantName" placeholder="e.g. Raj Foods Pvt Ltd"></div>
+      <div class="mf"><label>Applicant Email <span style="color:#f43f5e;">*</span></label><input type="email" id="emailApplicantEmail" placeholder="client@example.com"></div>
+    </div>
+    <div class="mf"><label>Event Date</label><input type="date" id="emailEventDate"></div>
+    <div class="mf"><label>Email Subject</label><input type="text" id="emailSubject"></div>
+    <div class="mf"><label>Email Body</label><textarea id="emailBody" style="min-height:150px;font-size:12.5px;line-height:1.6;"></textarea></div>
+    <div style="font-size:11.5px;color:#4b5880;margin-bottom:14px;">
+      📤 Sent from: <span id="emailFromLabel" style="color:#7aa3ff;">your registered email</span>
+    </div>
+    <div class="modal-btns">
+      <button class="topbar-btn btn-ghost" onclick="closeModal('sendEmailModal')">Cancel</button>
+      <button class="topbar-btn btn-primary" onclick="sendApplicantEmail()">📧 Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GOOGLE CALENDAR EVENT MODAL ══ -->
+<div class="overlay" id="gcalModal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">📅 Add to Google Calendar</div>
+    <div class="modal-sub">Auto-create a calendar event for this hearing</div>
+    <div id="gcalEventPreview" style="background:rgba(66,133,244,.07);border:1px solid rgba(66,133,244,.25);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px;" id="gcalEventTitle">—</div>
+      <div style="font-size:12px;color:#94a3c8;" id="gcalEventDate">—</div>
+      <div style="font-size:12px;color:#94a3c8;margin-top:3px;" id="gcalEventApp">—</div>
+    </div>
+    <div class="mf"><label>Reminder (before event)</label>
+      <select id="gcalReminderMins">
+        <option value="1440">1 day before</option>
+        <option value="4320" selected>3 days before</option>
+        <option value="10080">1 week before</option>
+      </select>
+    </div>
+    <div class="mf"><label>Preparation Notes</label>
+      <textarea id="gcalEventNotes" placeholder="e.g. Prepare reply affidavit, gather evidence..." style="min-height:70px;"></textarea>
+    </div>
+    <div id="gcalStatusMsg" style="display:none;padding:10px 14px;border-radius:8px;font-size:12.5px;margin-bottom:12px;"></div>
+    <div class="modal-btns">
+      <button class="topbar-btn btn-ghost" onclick="closeModal('gcalModal')">Cancel</button>
+      <button class="topbar-btn btn-primary" onclick="addToGoogleCalendar()" id="gcalAddBtn">📅 Add to Calendar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="emailToast" style="position:fixed;bottom:28px;right:28px;z-index:9999;background:linear-gradient(135deg,#00c897,#2563ff);color:#fff;padding:14px 22px;border-radius:12px;font-size:13.5px;font-weight:600;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);">✅ Email sent successfully!</div>
+<div id="gcalToast" style="position:fixed;bottom:28px;right:28px;z-index:9999;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;padding:14px 22px;border-radius:12px;font-size:13.5px;font-weight:600;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);">📅 Event added to Google Calendar!</div>
+<div id="autoEmailToast" style="position:fixed;bottom:28px;left:28px;z-index:9999;background:linear-gradient(135deg,#ea4335,#fbbc05);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4);">📧 Auto-reminder sent to you</div>
+<style>@keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}</style>
+
 </div><!-- /appShell -->
 
 <script>
@@ -1243,6 +1529,98 @@ const USERS = [
 
 let currentUser = null;
 let tmaData = null;
+let agentProfile = {}; // full agent profile from registration
+let gcalConnected = false;
+
+// ══════════════════════════
+//  MULTI-STEP SETUP
+// ══════════════════════════
+
+function setStepUI(active) {
+  [2,3,4].forEach(n => {
+    const ind = document.getElementById('sInd'+n);
+    if (!ind) return;
+    ind.className = 'tma-step' + (n < active ? ' done' : n === active ? ' active' : '');
+    ind.querySelector('.step-num').textContent = n < active ? '✓' : n;
+  });
+  document.getElementById('tmaStep2').style.display = active===2?'block':'none';
+  document.getElementById('tmaStep3').style.display = active===3?'block':'none';
+  document.getElementById('tmaStep4').style.display = active===4?'block':'none';
+}
+
+function goToStep3() {
+  const name  = document.getElementById('agentFullName').value.trim();
+  const email = document.getElementById('agentEmail').value.trim();
+  const mob   = document.getElementById('agentMobile').value.trim();
+  const city  = document.getElementById('agentCity').value.trim();
+  const state = document.getElementById('agentState').value;
+  const errEl = document.getElementById('tmaError');
+  errEl.style.display = 'none';
+  if (!name || !email || !mob || !city || !state) {
+    errEl.textContent = '❌ Please fill in all required fields (Name, Email, Mobile, City, State).';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errEl.textContent = '❌ Please enter a valid professional email address.';
+    errEl.style.display = 'block';
+    return;
+  }
+  // Save agent profile
+  agentProfile = {
+    fullName:    name,
+    firmName:    document.getElementById('agentFirmName').value.trim() || name,
+    email:       email,
+    mobile:      mob,
+    phone:       document.getElementById('agentPhone').value.trim(),
+    barNo:       document.getElementById('agentBarNo').value.trim(),
+    address:     document.getElementById('agentAddress').value.trim(),
+    city, state,
+    pin:         document.getElementById('agentPin').value.trim(),
+    portalUser:  document.getElementById('agentPortalUser').value.trim(),
+    years:       document.getElementById('agentYears').value,
+  };
+  // Pre-fill notification email
+  document.getElementById('notifAgentEmail').value = email;
+  setStepUI(3);
+}
+
+function goToStep4() {
+  setStepUI(4);
+  // Populate from agent profile
+  if (agentProfile.email) {
+    document.getElementById('notifAgentEmail').value = agentProfile.email;
+    document.getElementById('emailFromLabel').textContent = agentProfile.email;
+  }
+}
+
+function finishSetup() {
+  // Save notification prefs
+  agentProfile.notifHearing     = document.getElementById('notifHearing').checked;
+  agentProfile.notifObjection   = document.getElementById('notifObjection').checked;
+  agentProfile.notifAdjournment = document.getElementById('notifAdjournment').checked;
+  agentProfile.notifStatus      = document.getElementById('notifStatus').checked;
+  agentProfile.notifLeadDays    = parseInt(document.getElementById('notifLeadTime').value);
+  enterApp();
+}
+
+// Google Calendar OAuth stub
+function connectGoogleCalendar() {
+  const btn = document.getElementById('gcalConnectBtn');
+  btn.classList.add('loading'); btn.disabled = true;
+  // Simulate OAuth flow (in prod: window.open Google OAuth URL)
+  setTimeout(() => {
+    btn.classList.remove('loading'); btn.disabled = false;
+    gcalConnected = true;
+    document.getElementById('gcalConnectArea').style.display = 'none';
+    document.getElementById('gcalConnected').style.display = 'block';
+    const email = agentProfile.email || (currentUser ? currentUser.name.toLowerCase().replace(' ','.')+  '@gmail.com' : 'agent@gmail.com');
+    document.getElementById('gcalAccountLabel').textContent = email + ' — calendar linked';
+    agentProfile.gcalEmail = email;
+    // Simulate sending auto reminder to agent
+    triggerAutoReminder('Google Calendar connected! Hearings will now auto-sync.');
+  }, 1800);
+}
 
 // ── LOGIN ──
 function doLogin() {
@@ -1266,6 +1644,11 @@ function doLogin() {
     btn.disabled = false;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('tmaScreen').style.display = 'flex';
+    setStepUI(2);
+    // Pre-fill name from login user
+    if (currentUser && !document.getElementById('agentFullName').value) {
+      document.getElementById('agentFullName').value = currentUser.name || '';
+    }
   }, 1000);
 }
 
@@ -1412,11 +1795,274 @@ function enterApp() {
   document.getElementById('tmaScreen').style.display = 'none';
   const appShell = document.getElementById('appShell');
   appShell.style.display = 'block';
-  // Personalize if tmaData present
-  if (tmaData) {
-    const n = tmaData.name.split(' ')[0];
-    const greet = document.getElementById('topbarGreeting');
-    if (greet) greet.textContent = `Welcome back, ${n} — ${tmaData.hearings} hearings scheduled`;
+  // Personalize if tmaData or agentProfile present
+  const name = (tmaData && tmaData.name) || agentProfile.fullName || (currentUser && currentUser.name) || 'Attorney';
+  const firstName = name.split(' ')[0];
+  const hearings = (tmaData && tmaData.hearings) || 0;
+  const greet = document.getElementById('topbarGreeting');
+  if (greet) greet.textContent = `Welcome back, ${firstName} — ${hearings} hearings scheduled`;
+  document.getElementById('pageSubEl').textContent = `Welcome back, ${firstName} — ${hearings} hearings this week`;
+  document.getElementById('sidebarUserName').textContent = name;
+  const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('sidebarUserInit').textContent = initials;
+
+  // Auto-send "setup complete" reminder to agent
+  setTimeout(() => triggerAutoReminder('Setup complete! Hearing sync is active.'), 1200);
+  // Add upcoming calendar events automatically
+  if (gcalConnected) autoSyncHearingsToCalendar();
+}
+
+// ════════════════════════════════════════
+//  GOOGLE CALENDAR AUTO-SYNC
+// ════════════════════════════════════════
+
+// Called after every scraper fetch if gcalConnected
+function autoSyncHearingsToCalendar(hearings) {
+  if (!gcalConnected) return;
+  const list = hearings || [
+    {appNo:'5847291', applicant:'Raj Foods Pvt Ltd', date:'17 Mar 2026', status:'hearing'},
+    {appNo:'5821043', applicant:'Veda Tech', date:'19 Mar 2026', status:'objected'},
+    {appNo:'5798432', applicant:'Zen Wellness', date:'24 Mar 2026', status:'hearing'},
+  ];
+  let added = 0;
+  list.forEach(h => {
+    const key = 'gcal_'+h.appNo;
+    if (!sessionStorage.getItem(key)) {
+      _addCalendarEvent(h);
+      sessionStorage.setItem(key, '1');
+      added++;
+    }
+  });
+  if (added > 0) {
+    showToast('gcalToast', `📅 ${added} hearing(s) auto-added to Google Calendar!`, 3500);
+    triggerAutoReminder(`${added} new hearing(s) synced to your Google Calendar.`);
+  }
+}
+
+// Build Google Calendar URL (opens in new tab as OAuth flow in demo)
+function _addCalendarEvent(h) {
+  // In production this uses Google Calendar API with OAuth token
+  // For demo we build the calendar URL and log it
+  const title  = encodeURIComponent(`TM Hearing: App ${h.appNo} (${h.status})`);
+  const dateStr = h.date ? h.date.replace(/[^0-9]/g,'').slice(0,8) : '20260317';
+  const desc   = encodeURIComponent(`Applicant: ${h.applicant||'—'}\nApp No: ${h.appNo}\nStatus: ${h.status}\nPlatform: MarkShield`);
+  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}T103000Z/${dateStr}T133000Z&details=${desc}`;
+  console.log('[MarkShield] Calendar event URL:', url);
+  return url;
+}
+
+// Open modal to manually add one hearing to calendar
+let _pendingGcalHearing = null;
+function openGcalModal(hearing) {
+  _pendingGcalHearing = hearing || {appNo:'5847291', applicant:'Raj Foods Pvt Ltd', date:'17 Mar 2026', status:'Hearing', slot:'Morning 10:30 AM'};
+  document.getElementById('gcalEventTitle').textContent = `TM Hearing — App No. ${_pendingGcalHearing.appNo}`;
+  document.getElementById('gcalEventDate').textContent  = `📅 ${_pendingGcalHearing.date}  ${_pendingGcalHearing.slot||''}`;
+  document.getElementById('gcalEventApp').textContent   = `👤 ${_pendingGcalHearing.applicant||''}`;
+  document.getElementById('gcalStatusMsg').style.display = 'none';
+  openModal('gcalModal');
+}
+
+function addToGoogleCalendar() {
+  if (!_pendingGcalHearing) return;
+  const btn = document.getElementById('gcalAddBtn');
+  btn.disabled = true; btn.textContent = '⌛ Adding...';
+  setTimeout(() => {
+    btn.disabled = false; btn.textContent = '📅 Add to Calendar';
+    const url = _addCalendarEvent(_pendingGcalHearing);
+    const msg = document.getElementById('gcalStatusMsg');
+    if (gcalConnected) {
+      msg.style.display = 'block';
+      msg.style.background = 'rgba(52,168,83,.12)';
+      msg.style.color = '#34a853';
+      msg.textContent = '✅ Event added to your Google Calendar!';
+      setTimeout(() => {
+        closeModal('gcalModal');
+        showToast('gcalToast', '📅 Hearing added to Google Calendar!', 3000);
+        triggerAutoReminder(`Hearing reminder set for App ${_pendingGcalHearing.appNo} on ${_pendingGcalHearing.date}`);
+      }, 1200);
+    } else {
+      // Open Google Calendar URL in new tab
+      window.open(url, '_blank');
+      closeModal('gcalModal');
+      showToast('gcalToast', '📅 Opening Google Calendar...', 2500);
+    }
+  }, 1400);
+}
+
+// ════════════════════════════════════════
+//  EMAIL TEMPLATES & SENDING
+// ════════════════════════════════════════
+
+const EMAIL_TEMPLATES = {
+  hearing: {
+    subject: (tm, app) => `Important: Hearing Scheduled for ${tm} (App No. ${app})`,
+    body: (data) => `Dear ${data.applicant},
+
+This is an important reminder regarding your trademark application:
+
+Trademark: ${data.tm}
+Application No.: ${data.app}
+Hearing Date: ${data.date}
+Status: Hearing Scheduled
+
+You are advised to be present or ensure your authorized representative attends the hearing. Please arrange all relevant documents and evidence in advance.
+
+If you have any questions, please contact us immediately.
+
+Warm regards,
+${data.agentName}
+${data.agentFirm}
+${data.agentEmail} | ${data.agentMobile}
+
+—
+This email was sent from MarkShield IP Management Platform.`
+  },
+  objection: {
+    subject: (tm, app) => `Action Required: Examination Report / Objection — ${tm} (App No. ${app})`,
+    body: (data) => `Dear ${data.applicant},
+
+We wish to inform you that an Examination Report / Objection has been issued for your trademark application:
+
+Trademark: ${data.tm}
+Application No.: ${data.app}
+Date: ${data.date}
+
+A reply to the Examination Report must be filed within the prescribed timeline. Failure to respond may result in the application being deemed abandoned.
+
+We will prepare and file a comprehensive response. Please share any supporting documents or evidence at your earliest.
+
+Warm regards,
+${data.agentName}
+${data.agentFirm}
+${data.agentEmail} | ${data.agentMobile}`
+  },
+  adjournment: {
+    subject: (tm, app) => `Hearing Adjourned / Rescheduled — ${tm} (App No. ${app})`,
+    body: (data) => `Dear ${data.applicant},
+
+Please note that the hearing for your trademark application has been adjourned / rescheduled:
+
+Trademark: ${data.tm}
+Application No.: ${data.app}
+New Hearing Date: ${data.date}
+
+Please ensure all previously submitted documents are ready. We will notify you of any further changes.
+
+Warm regards,
+${data.agentName}
+${data.agentFirm}
+${data.agentEmail} | ${data.agentMobile}`
+  },
+  status_change: {
+    subject: (tm, app) => `Status Update: ${tm} (App No. ${app})`,
+    body: (data) => `Dear ${data.applicant},
+
+There has been a status update on your trademark application:
+
+Trademark: ${data.tm}
+Application No.: ${data.app}
+Date of Update: ${data.date}
+New Status: [Please fill in the new status]
+
+Please review this update and contact us if you have any queries.
+
+Warm regards,
+${data.agentName}
+${data.agentFirm}
+${data.agentEmail} | ${data.agentMobile}`
+  }
+};
+
+function openSendEmailModal(opts) {
+  opts = opts || {};
+  document.getElementById('emailEventType').value  = opts.eventType || 'hearing';
+  document.getElementById('emailTmName').value     = opts.tm || '';
+  document.getElementById('emailAppNo').value      = opts.app || '';
+  document.getElementById('emailApplicantName').value = opts.applicant || '';
+  document.getElementById('emailApplicantEmail').value = opts.clientEmail || '';
+  document.getElementById('emailEventDate').value  = opts.date || '';
+  const agentName  = agentProfile.fullName  || (currentUser && currentUser.name) || 'TM Agent';
+  const agentFirm  = agentProfile.firmName  || agentName;
+  const agentEmail = agentProfile.email     || 'agent@example.com';
+  const agentMobile= agentProfile.mobile    || '';
+  document.getElementById('emailFromLabel').textContent = agentEmail;
+  updateEmailTemplate();
+  openModal('sendEmailModal');
+}
+
+function updateEmailTemplate() {
+  const type = document.getElementById('emailEventType').value;
+  const tm   = document.getElementById('emailTmName').value || '[TRADEMARK]';
+  const app  = document.getElementById('emailAppNo').value || '[APP NO]';
+  const tpl  = EMAIL_TEMPLATES[type];
+  if (!tpl) return;
+  document.getElementById('emailSubject').value = tpl.subject(tm, app);
+  const agentName  = agentProfile.fullName  || (currentUser && currentUser.name) || 'TM Agent';
+  const agentFirm  = agentProfile.firmName  || agentName;
+  const agentEmail = agentProfile.email     || 'agent@example.com';
+  const agentMobile= agentProfile.mobile    || '';
+  document.getElementById('emailBody').value = tpl.body({
+    applicant: document.getElementById('emailApplicantName').value || '[APPLICANT NAME]',
+    tm, app,
+    date: document.getElementById('emailEventDate').value || '[DATE]',
+    agentName, agentFirm, agentEmail, agentMobile
+  });
+}
+
+function sendApplicantEmail() {
+  const to = document.getElementById('emailApplicantEmail').value.trim();
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    alert('Please enter a valid applicant email address.');
+    return;
+  }
+  const subject = document.getElementById('emailSubject').value;
+  const body    = document.getElementById('emailBody').value;
+  const agentEmail = agentProfile.email || 'agent@example.com';
+
+  // In production: POST to /api/notify/send-email with {to, subject, body, from: agentEmail}
+  // For demo: open Gmail compose or show success toast
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}&from=${encodeURIComponent(agentEmail)}`;
+
+  // Simulate sending
+  closeModal('sendEmailModal');
+  showToast('emailToast', '✅ Email sent to applicant!', 3000);
+  triggerAutoReminder(`Reminder email sent to applicant (${to})`);
+
+  // Also open Gmail compose in new tab
+  window.open(gmailUrl, '_blank');
+}
+
+// Auto reminder to agent (simulates auto-email from platform)
+function triggerAutoReminder(message) {
+  const agentEmail = agentProfile.email;
+  if (!agentEmail) return;
+  // In production: POST to /api/notify/auto-remind with message + agentEmail
+  console.log(`[MarkShield] AUTO REMINDER to ${agentEmail}: ${message}`);
+  showToast('autoEmailToast', `📧 Auto-sent to ${agentEmail.split('@')[0]}`, 2800);
+}
+
+function showToast(id, msg, dur) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.animation = 'toastIn .4s ease';
+  setTimeout(() => { el.style.display = 'none'; }, dur || 3000);
+}
+
+// Auto-trigger calendar sync when cause list is fetched
+const _origRenderCauseListResults = window.renderCauseListResults;
+
+// Hook into scraper results: after hearings fetched, auto-sync to calendar
+function onHearingsFetched(hearings) {
+  if (gcalConnected && hearings && hearings.length > 0) {
+    autoSyncHearingsToCalendar(hearings);
+  }
+  // Also auto-send reminder email to agent
+  if (hearings && hearings.length > 0 && agentProfile.email) {
+    const count = hearings.length;
+    const dates = [...new Set(hearings.map(h => h.date))].slice(0,3).join(', ');
+    triggerAutoReminder(`${count} hearing(s) fetched from IP India. Dates: ${dates}`);
   }
 }
 </script>
@@ -1523,6 +2169,7 @@ function renderMonitor() {
           <button class="mact-btn mact-oppose">⚔️ File Opposition</button>
           <button class="mact-btn mact-oppose" style="background:rgba(245,158,11,.1);color:var(--amber)">📨 Send Cease & Desist</button>
           <button class="mact-btn mact-watch">👁 Watch</button>
+          <button class="mact-btn" style="background:rgba(37,99,255,.1);color:#7aa3ff;" onclick="openSendEmailModal({eventType:'status_change',tm:'${m.vs}',app:'${m.app}'})">&#x1F4E7; Email Applicant</button>
           <button class="mact-btn mact-dismiss">✕ Dismiss</button>
         </div>
       </div>
@@ -1723,26 +2370,40 @@ function renderCauseListResults(hearings, agent, date) {
     return;
   }
   window._lastFetchedHearings = hearings;
+
+  // AUTO-SYNC: Google Calendar + auto-email reminder to agent
+  onHearingsFetched(hearings);
+
   el.innerHTML = `
     <div class="card">
       <div class="card-head">
-        <h3>🏛 ${hearings.length} Hearing${hearings.length!==1?'s':''} Found${agent?' — '+agent:''}
-          <span style="font-size:11px;font-weight:400;color:var(--teal);margin-left:8px;">IP India Cause List · ${date}</span></h3>
-        ${agent?`<button class="topbar-btn btn-primary" style="font-size:12px;padding:5px 12px;" onclick="openModal('reminderModal')">📅 Add All to Calendar</button>`:''}
+        <h3>&#x1F3DB; ${hearings.length} Hearing${hearings.length!==1?'s':''} Found${agent?' &#x2014; '+agent:''}
+          <span style="font-size:11px;font-weight:400;color:var(--teal);margin-left:8px;">IP India Cause List &#xB7; ${date}</span></h3>
+        <div style="display:flex;gap:8px;">
+          <button class="topbar-btn" style="font-size:12px;padding:5px 12px;background:rgba(66,133,244,.15);color:#7aa3ff;border:1px solid rgba(66,133,244,.3);border-radius:8px;cursor:pointer;"
+            onclick="gcalConnected ? autoSyncHearingsToCalendar(window._lastFetchedHearings) : openGcalModal()">&#x1F4C5; ${gcalConnected?'Sync All to Calendar':'Add to Calendar'}</button>
+        </div>
       </div>
       <div class="card-body">
         <table class="tbl">
-          <thead><tr><th>App No.</th><th>Agent / Attorney</th><th>Applicant</th><th>Date</th><th>Slot</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>App No.</th><th>Agent / Attorney</th><th>Applicant</th><th>Date</th><th>Slot</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             ${hearings.map(h => `
               <tr>
-                <td class="mono"><a href="${h.view_url}" target="_blank" style="color:var(--accent);text-decoration:none;">${h.appNo} ↗</a></td>
+                <td class="mono"><a href="${h.view_url}" target="_blank" style="color:var(--accent);text-decoration:none;">${h.appNo} &#x2197;</a></td>
                 <td style="font-size:12px;">${h.agent}</td>
                 <td style="font-size:12px;max-width:200px;">${h.applicant}</td>
                 <td class="mono" style="color:var(--amber);font-weight:600;">${h.date}</td>
                 <td style="font-size:11px;color:var(--text3);">${h.slot}</td>
                 <td><span class="chip ${h.status==='objected'?'chip-objected':h.status==='opposed'?'chip-rose':'chip-hearing'}">${h.status}</span></td>
-                <td><button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openModal('reminderModal')">📅 Remind</button></td>
+                 <td style="display:flex;gap:5px;flex-wrap:nowrap;">
+                   <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 8px;" title="Add to Calendar"
+                     data-hidx="${window._lastFetchedHearings ? window._lastFetchedHearings.findIndex(x=>x.appNo==='${h.appNo}') : -1}"
+                     onclick="openGcalModal(window._lastFetchedHearings[+this.dataset.hidx]||{appNo:'${h.appNo}',date:'${h.date}'})">&#x1F4C5;</button>
+                   <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 8px;" title="Send Email"
+                     data-hidx="${window._lastFetchedHearings ? window._lastFetchedHearings.findIndex(x=>x.appNo==='${h.appNo}') : -1}"
+                     onclick="var hh=window._lastFetchedHearings[+this.dataset.hidx]||{};openSendEmailModal({eventType:'hearing',app:hh.appNo||'${h.appNo}',applicant:hh.applicant||'',date:hh.date||'${h.date}'})">&#x1F4E7;</button>
+                 </td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -1750,8 +2411,8 @@ function renderCauseListResults(hearings, agent, date) {
     </div>`;
 }
 
-function addHearingToCalendar() { openModal('reminderModal'); }
-function addAllToCalendar()     { openModal('reminderModal'); }
+function addHearingToCalendar() { openGcalModal(); }
+function addAllToCalendar()     { autoSyncHearingsToCalendar(window._lastFetchedHearings); }
 
 // ══════════════════════════════════════════════════════════
 //  APPLICATION STATUS FETCH  (Tab 2)
@@ -1886,11 +2547,17 @@ async function fetchAgentHearings() {
   setBar(barId, 100);
   appendLog(logId, 'data', `Showing ${hearings.length} hearing(s)`);
 
+  window._agentHearings = hearings;
+  // Auto-sync to calendar + auto-email
+  onHearingsFetched(hearings);
   document.getElementById('agResults').innerHTML = hearings.length ? `
     <div class="card">
       <div class="card-head">
         <h3>📅 ${hearings.length} Hearing${hearings.length!==1?'s':''} — ${query}</h3>
-        <button class="topbar-btn btn-primary" style="font-size:12px;" onclick="openModal('reminderModal')">📅 Set Reminders</button>
+        <div style="display:flex;gap:8px;">
+          <button class="topbar-btn" style="font-size:12px;padding:5px 12px;background:rgba(66,133,244,.15);color:#7aa3ff;border:1px solid rgba(66,133,244,.3);border-radius:8px;cursor:pointer;"
+            onclick="autoSyncHearingsToCalendar(window._agentHearings)">&#x1F4C5; Sync to Calendar</button>
+        </div>
       </div>
       <div class="card-body">
         <table class="tbl">
@@ -1902,7 +2569,12 @@ async function fetchAgentHearings() {
               <td class="mono" style="color:var(--amber);font-weight:600;">${h.date}</td>
               <td style="font-size:11px;color:var(--text3);">${h.slot}</td>
               <td><span class="chip ${h.status==='objected'?'chip-objected':'chip-hearing'}">${h.status}</span></td>
-              <td><button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openModal('reminderModal')">⏰ Remind</button></td>
+              <td style="display:flex;gap:5px;">
+                  <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 8px;" title="Add to Calendar"
+                    onclick="openGcalModal({appNo:'${h.appNo}',date:'${h.date}',slot:'${h.slot}',status:'${h.status}'})">&#x1F4C5;</button>
+                  <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 8px;" title="Send Email"
+                    onclick="openSendEmailModal({eventType:'hearing',app:'${h.appNo}',date:'${h.date}'})">&#x1F4E7;</button>
+                </td>
             </tr>`).join('')}
           </tbody>
         </table>
@@ -1957,7 +2629,10 @@ document.getElementById('upcomingList').innerHTML = upcomingItems.map(i => `
       <div class="ub-sub">${i.sub}</div>
     </div>
     <div class="upcoming-actions">
-      <button class="topbar-btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="openModal('reminderModal')">⏰ Remind</button>
+      <div style="display:flex;gap:5px;">
+        <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 8px;" title="Add to Calendar" onclick="openGcalModal({appNo:'',applicant:'${i.title}',date:'${i.day} ${i.month}',slot:'',status:'hearing'})">&#x1F4C5;</button>
+        <button class="topbar-btn btn-ghost" style="font-size:11px;padding:4px 8px;" title="Send Email to Applicant" onclick="openSendEmailModal({eventType:'hearing',tm:'${i.title.split(' ')[0]}',date:'${i.day} ${i.month} 2026'})">&#x1F4E7;</button>
+      </div>
     </div>
   </div>`).join('');
 
