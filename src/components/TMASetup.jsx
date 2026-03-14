@@ -1,9 +1,15 @@
 import React, { useState } from "react"
+import { checkBackend, efilingLogin } from "../services/api"
 
-const TMA_LOGS = [
+// Realistic log sequence shown during the actual login attempt.
+// Only the FIRST 3 entries are shown before the real API call;
+// the remaining entries are shown only on success.
+const LOG_PREFIX = [
   { t: "info", m: "Initializing secure connection to ipindia.gov.in..." },
   { t: "ok",   m: "TLS handshake complete — connection established" },
   { t: "info", m: "Authenticating TMA credentials with CGPDTM registry..." },
+]
+const LOG_SUCCESS_SUFFIX = [
   { t: "ok",   m: "Attorney record verified — TMA code authenticated ✓" },
   { t: "data", m: "Fetching attorney registration details..." },
   { t: "ok",   m: "Attorney profile loaded: {NAME} · {CITY}, {STATE}" },
@@ -44,30 +50,79 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
   }
 
   const doFetchTMA = async () => {
-    if (!tmaCode.trim()) { setError("Please enter your TMA code or eFiling username."); return }
-    setError(""); setFetching(true); setFetchLog([]); setFetchProgress(0)
+    if (!tmaCode.trim())  { setError("Please enter your TMA code or eFiling username."); return }
+    if (!tmaPass.trim())  { setError("Please enter your eFiling password."); return }
+    setError(""); setFetching(true); setFetchLog([]); setFetchProgress(0); setTmaData(null)
 
-    // Simulate TMA fetch with realistic logs
-    const logs = TMA_LOGS.map(l => ({
-      ...l,
-      m: l.m.replace("{NAME}", profile.fullName).replace("{CITY}", profile.city).replace("{STATE}", profile.state)
-    }))
+    const addLog = (t, m) =>
+      setFetchLog(prev => [...prev, { t, m: m.replace("{NAME}", profile.fullName).replace("{CITY}", profile.city).replace("{STATE}", profile.state), ts: new Date().toLocaleTimeString() }])
 
-    for (let i = 0; i < logs.length; i++) {
-      await new Promise(r => setTimeout(r, 350 + Math.random() * 200))
-      setFetchLog(prev => [...prev, { ...logs[i], ts: new Date().toLocaleTimeString() }])
-      setFetchProgress(Math.round(((i + 1) / logs.length) * 100))
+    // Step 1 — Check if backend is reachable at all
+    const backendUp = await checkBackend()
+    if (!backendUp) {
+      addLog("err", "❌ Backend offline — cannot reach IP India.")
+      addLog("warn", "Fix: Deploy your backend on Render or run: cd backend && python app.py")
+      setFetchProgress(0)
+      setFetching(false)
+      setError("Backend is offline. Please start the backend service first.")
+      return
     }
 
-    // Real implementation would call backend /api/efiling/login here
-    const fakeData = {
-      name: profile.fullName,
-      tmaCode,
-      city: profile.city,
-      state: profile.state,
-      total: 0, registered: 0, hearings: 0, pending: 0,
+    // Step 2 — Show prefix logs while making the real API call
+    for (const entry of LOG_PREFIX) {
+      await new Promise(r => setTimeout(r, 300 + Math.random() * 150))
+      addLog(entry.t, entry.m)
+      setFetchProgress(prev => prev + 12)
     }
-    setTmaData(fakeData)
+    setFetchProgress(42)
+
+    // Step 3 — Real login call to backend
+    try {
+      const result = await efilingLogin(tmaCode.trim(), tmaPass)
+
+      if (result && result.success) {
+        // Success path — show remaining logs
+        for (const entry of LOG_SUCCESS_SUFFIX) {
+          await new Promise(r => setTimeout(r, 280 + Math.random() * 150))
+          addLog(entry.t, entry.m)
+          setFetchProgress(prev => Math.min(prev + 10, 100))
+        }
+        setFetchProgress(100)
+        setTmaData({
+          name:    profile.fullName,
+          tmaCode: result.username || tmaCode.trim(),
+          city:    profile.city,
+          state:   profile.state,
+          total: 0, registered: 0, hearings: 0, pending: 0,
+        })
+      } else {
+        // Failure path — server returned { success: false, message: "..." }
+        const msg = result?.message || "Invalid username or password."
+        addLog("err", `❌ Login failed — ${msg}`)
+        addLog("warn", "Please check your IP India eFiling credentials and try again.")
+        setFetchProgress(0)
+        setError(msg)
+      }
+    } catch (err) {
+      // Network/timeout error
+      const isTimeout = err?.code === "ECONNABORTED" || err?.message?.includes("timeout")
+      const msg = isTimeout
+        ? "Request timed out — IP India server is slow. Please try again."
+        : (err?.response?.data?.message || err?.message || "Connection error")
+
+      // 401 = wrong password returned by backend
+      if (err?.response?.status === 401) {
+        const serverMsg = err?.response?.data?.message || "Invalid username or password."
+        addLog("err", `❌ Authentication rejected — ${serverMsg}`)
+        addLog("warn", "Please verify your IP India eFiling username and password.")
+        setError(serverMsg)
+      } else {
+        addLog("err", `❌ ${msg}`)
+        setError(msg)
+      }
+      setFetchProgress(0)
+    }
+
     setFetching(false)
   }
 
