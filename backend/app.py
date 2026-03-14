@@ -1,18 +1,16 @@
-import os, logging
+import os
+import logging
 from flask import Flask, jsonify, request, Response
 from datetime import datetime
 
-from routes.cause_list  import bp_cause
-from routes.application import bp_app
-from routes.agent       import bp_agent
-from routes.search      import bp_search
-from routes.efiling     import bp_efiling
-from routes.portfolio   import bp_portfolio
-from routes.auth        import bp_auth
-from routes.notify      import bp_notify
-from routes.queue_list  import bp_queue
-from routes.export      import bp_export
-
+from routes import (
+    bp_cause,
+    bp_app,
+    bp_agent,
+    bp_search,
+    bp_efiling,
+    bp_portfolio
+)
 # ── logging ───────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
