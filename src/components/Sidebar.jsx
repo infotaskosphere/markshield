@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from "react-router-dom"
 const NAV = [
   { section: "Overview" },
   { to: "/dashboard", icon: "⬡", label: "Dashboard" },
-  { to: "/portfolio", icon: "◈", label: "Portfolio", badge: null },
+  { to: "/portfolio", icon: "◈", label: "Portfolio" },
   { section: "Monitoring" },
   { to: "/monitoring", icon: "⊛", label: "TM Watch" },
   { to: "/search",    icon: "⌕", label: "Smart Search" },
@@ -23,27 +23,22 @@ const NAV = [
 ]
 
 export default function Sidebar({ context, mobileOpen, onClose }) {
-  const { tmaData, agentProfile, currentUser } = context || {}
+  const { tmaData, agentProfile, currentUser, onLogout } = context || {}
   const navigate = useNavigate()
 
   const name     = tmaData?.name || agentProfile?.fullName || currentUser?.name || "MarkShield User"
   const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
-  const role     = agentProfile?.firmName ? `IP Attorney · ${agentProfile.firmName}` : "IP Attorney"
+  const role     = agentProfile?.firmName ? `${agentProfile.firmName}` : "IP Attorney"
 
   return (
     <>
-      {/* Mobile overlay backdrop */}
       {mobileOpen && (
-        <div onClick={onClose} style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,.55)",
-          zIndex: 98, backdropFilter: "blur(2px)"
-        }} />
+        <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 98, backdropFilter: "blur(2px)" }} />
       )}
 
       <aside className={`sidebar${mobileOpen ? " sidebar-mobile-open" : ""}`}>
         <div className="logo-area">
-          {/* Mobile close button */}
-          <button onClick={onClose} className="sidebar-close-btn" aria-label="Close menu">✕</button>
+          <button onClick={onClose} className="sidebar-close-btn">✕</button>
           <div className="logo-mark">⚖</div>
           <div>
             <div className="logo-name">Mark<em>Shield</em></div>
@@ -55,17 +50,11 @@ export default function Sidebar({ context, mobileOpen, onClose }) {
           {NAV.map((item, i) => {
             if (item.section) return <div key={i} className="nav-section-label">{item.section}</div>
             return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={onClose}
-                className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}
-              >
+              <NavLink key={item.to} to={item.to} onClick={onClose}
+                className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}>
                 <span className="nav-icon">{item.icon}</span>
                 {item.label}
-                {item.badge && (
-                  <span className={`nav-badge${item.badgeCls ? " " + item.badgeCls : ""}`}>{item.badge}</span>
-                )}
+                {item.badge && <span className={`nav-badge${item.badgeCls ? " " + item.badgeCls : ""}`}>{item.badge}</span>}
               </NavLink>
             )
           })}
@@ -78,8 +67,18 @@ export default function Sidebar({ context, mobileOpen, onClose }) {
               <div className="user-name">{name}</div>
               <div className="user-role">{role}</div>
             </div>
-            <div className="user-settings">⚙</div>
+            <div className="user-settings" title="Settings">⚙</div>
           </div>
+          {/* Logout button */}
+          {onLogout && (
+            <button
+              onClick={() => { if (window.confirm("Sign out of MarkShield?")) onLogout() }}
+              style={{ width: "100%", marginTop: 8, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "8px", cursor: "pointer", color: "var(--text3)", fontSize: 12, fontFamily: "var(--head)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all .18s" }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = "var(--rose)"; e.currentTarget.style.color = "var(--rose)" }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text3)" }}>
+              ⎋ Sign Out
+            </button>
+          )}
         </div>
       </aside>
     </>
