@@ -14,7 +14,7 @@ Fixes applied:
   - Proper SSL verification disabled only for ipindiaonline.gov.in (known SSL issues)
   - Session cookies preserved across requests
 """
-import time, hashlib, logging, re, urllib3
+import time, hashlib, logging, re, urllib3, base64
 import requests
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
@@ -527,80 +527,133 @@ def _parse_queue(html: str) -> list:
 # =============================================================================
 class EFilingClient:
     """Authenticated session with IP India eFiling portal."""
+
     def __init__(self):
         self.s = requests.Session()
         self.s.headers.update(HEADERS)
         self.authenticated = False
         self.username: Optional[str] = None
         self._last = 0.0
+        self.viewstate = None
+
     def _wait(self):
         gap = time.time() - self._last
         if gap < 1.2:
             time.sleep(1.2 - gap)
         self._last = time.time()
+
     @staticmethod
     def _get_viewstate(soup: BeautifulSoup) -> dict:
         def g(name):
             el = soup.find("input", {"name": name}) or soup.find("input", {"id": name})
             return (el or {}).get("value", "")
+
         return {
             "__VIEWSTATE": g("__VIEWSTATE"),
             "__EVENTVALIDATION": g("__EVENTVALIDATION"),
             "__VIEWSTATEGENERATOR": g("__VIEWSTATEGENERATOR"),
         }
-    def login(self, username: str, password: str) -> dict:
+
+    # -------------------------------------------------------
+    # CAPTCHA FETCH
+    # -------------------------------------------------------
+
+    def get_captcha(self) -> dict:
         """
-        Login to IP India eFiling portal.
-        Returns {"success": True/False, "message": "..."}
-        FIXED: Previous version accepted wrong passwords because the URL
-        redirect check was unreliable. Now uses multiple verification methods.
+        Fetch captcha image from IP India login page.
+        Returns base64 captcha image + viewstate values.
         """
-        log.info(f"eFiling login attempt: {username}")
-        self.authenticated = False
+
         try:
             self._wait()
-            # Step 1: GET the login page to extract viewstate
-            self.s.headers.update(HEADERS)
-            login_page = self.s.get(
+
+            page = self.s.get(
                 URL["efiling_login"],
+                timeout=45,
+                verify=False
+            )
+
+            soup = BeautifulSoup(page.text, "lxml")
+
+            vs = self._get_viewstate(soup)
+            self.viewstate = vs
+
+            img = soup.find("img", {"id": "ctl00_ContentPlaceHolder1_imgCaptcha"})
+
+            if not img:
+                return {
+                    "success": False,
+                    "message": "Captcha image not found on page"
+                }
+
+            captcha_url = "https://ipindiaonline.gov.in" + img["src"]
+
+            image = self.s.get(
+                captcha_url,
+                timeout=45,
+                verify=False
+            )
+
+            captcha_base64 = base64.b64encode(image.content).decode()
+
+            return {
+                "success": True,
+                "captcha": captcha_base64
+            }
+
+        except Exception as e:
+            log.error(f"Captcha fetch error: {e}")
+            return {"success": False, "message": str(e)}
+
+    # -------------------------------------------------------
+    # LOGIN
+    # -------------------------------------------------------
+
+    def login(self, username: str, password: str, captcha: str) -> dict:
+        """
+        Login to IP India eFiling portal using captcha.
+        """
+
+        log.info(f"eFiling login attempt: {username}")
+
+        self.authenticated = False
+
+        try:
+
+            if not self.viewstate:
+                return {
+                    "success": False,
+                    "message": "Captcha session expired. Please refresh captcha."
+                }
+
+            form = {
+                **self.viewstate,
+                "ctl00$ContentPlaceHolder1$txtUserName": username,
+                "ctl00$ContentPlaceHolder1$txtPassword": password,
+                "ctl00$ContentPlaceHolder1$txtCaptcha": captcha,
+                "ctl00$ContentPlaceHolder1$btnLogin": "Login",
+            }
+
+            self._wait()
+
+            self.s.headers.update(EFILING_HEADERS)
+
+            resp = self.s.post(
+                URL["efiling_login"],
+                data=form,
                 timeout=45,
                 verify=False,
                 allow_redirects=True
             )
-            soup = BeautifulSoup(login_page.text, "lxml")
-            vs = self._get_viewstate(soup)
-            if not vs["__VIEWSTATE"]:
-                return {"success": False, "message": "Could not load eFiling login page. Please try again."}
-            # Step 2: POST credentials
-            form = {
-                **vs,
-                "ctl00$ContentPlaceHolder1$txtUserName": username,
-                "ctl00$ContentPlaceHolder1$txtPassword": password,
-                "ctl00$ContentPlaceHolder1$btnLogin": "Login",
-            }
-            self._wait()
-            # Update headers for POST to look like a real browser form submit
-            self.s.headers.update(EFILING_HEADERS)
-            resp = None
-            for attempt in range(3):
-                try:
-                    resp = self.s.post(
-                        URL["efiling_login"],
-                        data=form,
-                        timeout=45,
-                        verify=False,
-                        allow_redirects=True
-                    )
-                    break
-                except Exception as retry_err:
-                    log.warning(f"Login POST attempt {attempt+1}/3 failed: {retry_err}")
-                    time.sleep(3 * (attempt + 1))
-            if resp is None:
-                return {"success": False, "message": "IP India server refused the connection after 3 attempts. Please try again in a few minutes."}
+
             body = resp.text
             body_lower = body.lower()
             final_url = resp.url.lower()
-            # -- FAILURE CHECKS (check these first) ---------------------------
+
+            # ------------------------------
+            # FAILURE DETECTION
+            # ------------------------------
+
             failure_phrases = [
                 "invalid username",
                 "invalid password",
@@ -608,24 +661,83 @@ class EFilingClient:
                 "wrong password",
                 "authentication failed",
                 "login failed",
-                "user name or password is incorrect",
-                "invalid user",
+                "captcha",
                 "please enter valid",
                 "username or password",
             ]
+
             for phrase in failure_phrases:
                 if phrase in body_lower:
-                    log.warning(f"eFiling login rejected: '{phrase}' found in response")
-                    return {"success": False, "message": "Invalid username or password. Please check your IP India eFiling credentials."}
-            # -- STILL ON LOGIN PAGE CHECK ------------------------------------
-            # If we're still on the login page after POST, credentials were wrong
-            login_url_fragment = "frmloginnew"
-            if login_url_fragment in final_url:
-                # Double-check: look for success markers in body
-                success_markers = ["logout", "my application", "welcome", "dashboard", "frmhome", "frmmyapplication"]
+                    log.warning(f"Login rejected: {phrase}")
+
+                    return {
+                        "success": False,
+                        "message": "Login failed. Check username, password, or captcha."
+                    }
+
+            # ------------------------------
+            # STILL ON LOGIN PAGE
+            # ------------------------------
+
+            if "frmloginnew" in final_url:
+
+                success_markers = [
+                    "logout",
+                    "my application",
+                    "dashboard",
+                    "frmmyapplication",
+                ]
+
                 if not any(m in body_lower for m in success_markers):
-                    log.warning("eFiling: still on login page after POST — credentials rejected")
-                    return {"success": False, "message": "Login failed. Invalid username or password."}
+
+                    return {
+                        "success": False,
+                        "message": "Login failed. Invalid credentials or captcha."
+                    }
+
+            # ------------------------------
+            # SUCCESS DETECTION
+            # ------------------------------
+
+            success_markers = [
+                "logout",
+                "my application",
+                "frmmyapplication",
+                "dashboard",
+                "welcome"
+            ]
+
+            if any(m in body_lower for m in success_markers):
+
+                self.authenticated = True
+                self.username = username
+
+                log.info(f"eFiling login SUCCESS: {username}")
+
+                return {
+                    "success": True,
+                    "message": "Login successful",
+                    "username": username
+                }
+
+            return {
+                "success": False,
+                "message": "Login result unclear. Please retry."
+            }
+
+        except requests.exceptions.Timeout:
+            return {
+                "success": False,
+                "message": "Connection timeout. IP India server is slow."
+            }
+
+        except Exception as e:
+            log.error(f"Login exception: {e}")
+
+            return {
+                "success": False,
+                "message": str(e)
+            }
             # -- SUCCESS CHECKS -----------------------------------------------
             success_url_fragments = ["frmmyapplication", "frmhome", "frmdashboard", "frmwelcome"]
             success_body_markers = ["logout", "my application", "my profile", "welcome", "sign out", "frmlogout"]
