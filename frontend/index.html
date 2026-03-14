@@ -4421,3 +4421,42 @@ function showExportToast(msg, dur=3000) {
 }
 
 </script>
+<script>
+
+function show(view) {
+
+  // hide all views
+  document.querySelectorAll(".view").forEach(v=>{
+    v.classList.remove("active")
+  })
+
+  // show selected
+  const target = document.getElementById(view)
+  if(target){
+    target.classList.add("active")
+  }
+
+  // update sidebar active state
+  document.querySelectorAll(".nav-item").forEach(n=>{
+    n.classList.remove("active")
+  })
+
+  event.currentTarget.classList.add("active")
+}
+
+
+function openModal(id){
+  const modal = document.getElementById(id)
+  if(modal){
+    modal.classList.add("open")
+  }
+}
+
+function closeModal(id){
+  const modal = document.getElementById(id)
+  if(modal){
+    modal.classList.remove("open")
+  }
+}
+
+</script>
