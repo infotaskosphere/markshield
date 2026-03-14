@@ -97,7 +97,7 @@
 
 .auth-btn {
   width: 100%;
-  background: linear-gradient(135deg, #2563ff, #1a47d4);
+  background: linear-gradient(135deg, #2563ff, #00d4aa);
   border: none;
   border-radius: 10px;
   padding: 13px;
@@ -194,7 +194,7 @@
 .tma-fetch-log::-webkit-scrollbar-thumb { background: #1a2035; }
 .tfl { display: flex; gap: 10px; }
 .tfl-ts { color: #2a3550; }
-.tfl-ok   { color: #00c897; }
+.tfl-ok   { color: var(--teal); }
 .tfl-info { color: #38bdf8; }
 .tfl-warn { color: #f59e0b; }
 .tfl-data { color: #8b5cf6; }
@@ -296,7 +296,7 @@ html.light {
   --border2: #c0cae0;
   --accent: #2563ff;
   --accent-g: #1a47d4;
-  --teal: #00a882;
+  --teal: #00d4aa;
   --amber: #d97706;
   --rose: #e02444;
   --violet: #7c3aed;
@@ -578,7 +578,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
 .log-terminal::-webkit-scrollbar-thumb{background:#1a2035;}
 .log-line{display:flex;gap:12px;}
 .log-ts{color:#2a3550;flex-shrink:0;}
-.log-ok{color:#00c897;}
+.log-ok{color: var(--teal);}
 .log-info{color:#38bdf8;}
 .log-warn{color:#f59e0b;}
 .log-err{color:#f43f5e;}
@@ -817,7 +817,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
       <div class="tma-fetched-preview" id="tmaFetchedPreview">
         <div class="tma-attorney-card" id="tmaAttorneyCard"></div>
         <div class="tma-preview-grid" id="tmaPreviewGrid"></div>
-        <button class="auth-btn" onclick="goToStep4()" style="background:linear-gradient(135deg,#00c897,#2563ff);">
+        <button class="auth-btn" onclick="goToStep4()" style="background:linear-gradient(135deg,#2563ff,#00d4aa);">
           <span class="btn-text">✅ Continue to Notification Setup →</span>
           <div class="btn-loader"></div>
         </button>
@@ -919,7 +919,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;opacity:.025;
         📌 <b style="color:#7aa3ff;">Applicant email reminders</b> are sent <b>manually</b> — you'll see a "Send Email" button on each trademark event in the dashboard.
       </div>
 
-      <button class="auth-btn" onclick="finishSetup()" style="background:linear-gradient(135deg,#00c897,#2563ff);">
+      <button class="auth-btn" onclick="finishSetup()" style="background:linear-gradient(135deg,#2563ff,#00d4aa);">
         <span class="btn-text">🚀 Launch MarkShield Dashboard →</span>
         <div class="btn-loader"></div>
       </button>
@@ -3302,7 +3302,7 @@ let teamMembers = [
 const ROLE_LABELS = { attorney: '⚖️ Attorney', paralegal: '📋 Paralegal', clerk: '📁 Clerk', intern: '🎓 Intern' };
 const ROLE_COLORS = { attorney: 'chip-objected', paralegal: 'chip-hearing', clerk: 'chip-pending', intern: 'chip-registered' };
 const ACCESS_LABELS = { full: 'Full Access', view_tasks: 'View + Tasks', view: 'View Only' };
-const ACCESS_COLORS = { full: '#00c897', view_tasks: '#f59e0b', view: '#94a3c8' };
+const ACCESS_COLORS = { full: '#00d4aa', view_tasks: '#f59e0b', view: '#94a3c8' };
 
 function renderTeam() {
   const tbody = document.getElementById('teamTable');
