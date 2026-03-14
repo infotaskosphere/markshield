@@ -1,11 +1,18 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 
-const COLS = ["To Do", "In Progress", "Done"]
+const COLS   = ["To Do", "In Progress", "Done"]
+const LS_KEY = "ms_tasks"
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState([])
+  const [tasks, setTasks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]") } catch { return [] }
+  })
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: "", col: "To Do", prio: "medium", due: "", assignee: "" })
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(tasks)) } catch {}
+  }, [tasks])
 
   const addTask = () => {
     if (!form.name.trim()) return
@@ -14,8 +21,8 @@ export default function Tasks() {
     setShowAdd(false)
   }
 
-  const moveTask = (id, col) => setTasks(prev => prev.map(t => t.id === id ? { ...t, col } : t))
-  const removeTask = (id) => setTasks(prev => prev.filter(t => t.id !== id))
+  const moveTask   = (id, col) => setTasks(prev => prev.map(t => t.id === id ? { ...t, col } : t))
+  const removeTask = (id)      => setTasks(prev => prev.filter(t => t.id !== id))
 
   return (
     <>
@@ -37,9 +44,7 @@ export default function Tasks() {
               </div>
 
               {colTasks.length === 0 ? (
-                <div style={{ padding: "20px 10px", textAlign: "center", color: "var(--text3)", fontSize: 12 }}>
-                  No tasks yet
-                </div>
+                <div style={{ padding: "20px 10px", textAlign: "center", color: "var(--text3)", fontSize: 12 }}>No tasks</div>
               ) : (
                 colTasks.map(t => (
                   <div key={t.id} className="task-item">
@@ -47,9 +52,7 @@ export default function Tasks() {
                     <div className="task-meta">
                       <span className={`task-prio ${t.prio}`}>{t.prio}</span>
                       {t.due && <span className="task-due">{t.due}</span>}
-                      {t.assignee && (
-                        <div className="task-assignee">{t.assignee.slice(0,2).toUpperCase()}</div>
-                      )}
+                      {t.assignee && <div className="task-assignee">{t.assignee.slice(0,2).toUpperCase()}</div>}
                     </div>
                     <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
                       {COLS.filter(c => c !== col).map(c => (
@@ -59,20 +62,16 @@ export default function Tasks() {
                         </button>
                       ))}
                       <button onClick={() => removeTask(t.id)}
-                        style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: "none", border: "none", cursor: "pointer", color: "var(--text3)", marginLeft: "auto" }}>
-                        ✕
-                      </button>
+                        style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: "none", border: "none", cursor: "pointer", color: "var(--text3)", marginLeft: "auto" }}>✕</button>
                     </div>
                   </div>
                 ))
               )}
 
-              <button
-                onClick={() => { setForm(p => ({...p, col})); setShowAdd(true) }}
+              <button onClick={() => { setForm(p => ({...p, col})); setShowAdd(true) }}
                 style={{ width: "100%", background: "none", border: "1px dashed var(--border)", borderRadius: 8, padding: "8px", cursor: "pointer", color: "var(--text3)", fontSize: 12, fontFamily: "var(--head)", marginTop: 8, transition: "border-color .18s" }}
                 onMouseOver={e => e.currentTarget.style.borderColor = "var(--accent)"}
-                onMouseOut={e => e.currentTarget.style.borderColor = "var(--border)"}
-              >
+                onMouseOut={e => e.currentTarget.style.borderColor = "var(--border)"}>
                 + Add task
               </button>
             </div>
@@ -85,19 +84,16 @@ export default function Tasks() {
           <div className="modal">
             <div className="modal-title">New Task</div>
             <div className="modal-sub">Add a task to your trademark workflow.</div>
-            <div className="mf">
-              <label>Task Name *</label>
-              <input placeholder="e.g. File reply for TECHVEDA objection" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} autoFocus />
+            <div className="mf"><label>Task Name *</label>
+              <input placeholder="e.g. File reply for examination report" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} autoFocus />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <div className="mf">
-                <label>Column</label>
+              <div className="mf"><label>Column</label>
                 <select value={form.col} onChange={e => setForm(p => ({...p, col: e.target.value}))}>
                   {COLS.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
-              <div className="mf">
-                <label>Priority</label>
+              <div className="mf"><label>Priority</label>
                 <select value={form.prio} onChange={e => setForm(p => ({...p, prio: e.target.value}))}>
                   <option value="high">High</option>
                   <option value="medium">Medium</option>
@@ -105,12 +101,10 @@ export default function Tasks() {
                 </select>
               </div>
             </div>
-            <div className="mf">
-              <label>Due Date</label>
+            <div className="mf"><label>Due Date</label>
               <input type="date" value={form.due} onChange={e => setForm(p => ({...p, due: e.target.value}))} />
             </div>
-            <div className="mf">
-              <label>Assignee</label>
+            <div className="mf"><label>Assignee</label>
               <input placeholder="Name or initials" value={form.assignee} onChange={e => setForm(p => ({...p, assignee: e.target.value}))} />
             </div>
             <div className="modal-btns">
