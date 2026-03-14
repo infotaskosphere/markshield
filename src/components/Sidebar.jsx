@@ -4,14 +4,14 @@ import { NavLink, useNavigate } from "react-router-dom"
 const NAV = [
   { section: "Overview" },
   { to: "/dashboard", icon: "⬡", label: "Dashboard" },
-  { to: "/portfolio", icon: "◈", label: "Portfolio", badge: "24", badgeCls: "blue" },
+  { to: "/portfolio", icon: "◈", label: "Portfolio", badge: null, badgeCls: "gold" },
   { section: "Monitoring" },
-  { to: "/monitoring", icon: "⊛", label: "TM Watch", badge: "3" },
+  { to: "/monitoring", icon: "⊛", label: "TM Watch" },
   { to: "/search", icon: "⌕", label: "Smart Search" },
   { to: "/scraper", icon: "↻", label: "Data Scraper" },
   { to: "/pending", icon: "⚠", label: "Pending Replies" },
   { section: "Compliance" },
-  { to: "/calendar", icon: "⏣", label: "Hearing Calendar", badge: "5" },
+  { to: "/calendar", icon: "⏣", label: "Hearing Calendar" },
   { to: "/tasks", icon: "✦", label: "Task Manager" },
   { section: "Intelligence" },
   { to: "/ai", icon: "◉", label: "AI Assistant", badge: "AI", badgeCls: "teal" },
@@ -24,33 +24,22 @@ const NAV = [
 
 export default function Sidebar({ context }) {
   const { tmaData, agentProfile, currentUser } = context || {}
+  const navigate = useNavigate()
 
   const name =
-    (tmaData && tmaData.name) ||
-    (agentProfile && agentProfile.fullName) ||
-    (currentUser && currentUser.name) ||
-    "Rajesh Sharma"
+    (tmaData?.name) || (agentProfile?.fullName) || (currentUser?.name) || "MarkShield User"
 
-  const initials = name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-
-  const role =
-    agentProfile?.firmName
-      ? `IP Attorney · ${agentProfile.firmName}`
-      : "IP Attorney · Pro Plan"
+  const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+  const role = agentProfile?.firmName
+    ? `IP Attorney · ${agentProfile.firmName}`
+    : "IP Attorney · MarkShield"
 
   return (
     <aside className="sidebar">
       <div className="logo-area">
-        <div className="logo-mark">M</div>
+        <div className="logo-mark">⚖</div>
         <div>
-          <div className="logo-name">
-            Mark<em>Shield</em>
-          </div>
+          <div className="logo-name">Mark<em>Shield</em></div>
           <div className="logo-tag">AI Trademark Platform</div>
         </div>
       </div>
@@ -58,19 +47,13 @@ export default function Sidebar({ context }) {
       <div className="nav-scroll">
         {NAV.map((item, i) => {
           if (item.section) {
-            return (
-              <div key={i} className="nav-section-label">
-                {item.section}
-              </div>
-            )
+            return <div key={i} className="nav-section-label">{item.section}</div>
           }
           return (
             <NavLink
               key={item.to}
               to={item.to}
-              className={({ isActive }) =>
-                "nav-item" + (isActive ? " active" : "")
-              }
+              className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}
             >
               <span className="nav-icon">{item.icon}</span>
               {item.label}
@@ -85,7 +68,7 @@ export default function Sidebar({ context }) {
       </div>
 
       <div className="sidebar-footer">
-        <div className="user-card">
+        <div className="user-card" onClick={() => navigate("/team")}>
           <div className="user-avatar">{initials}</div>
           <div className="user-info">
             <div className="user-name">{name}</div>
