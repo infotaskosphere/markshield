@@ -1,110 +1,164 @@
 import React, { useState } from "react"
+import { fetchPublicSearch } from "../services/api"
 
-const mockResults = [
-  { name: "FRESHMART", app: "5847291", cls: "29, 30", similarity: 100, status: "registered", owner: "Raj Foods Pvt Ltd", colorVar: "var(--rose)" },
-  { name: "FRESHKART", app: "5912341", cls: "29, 30", similarity: 94, status: "pending", owner: "Unknown Applicant", colorVar: "var(--rose)" },
-  { name: "FRESH MARKET", app: "5734891", cls: "35", similarity: 81, status: "registered", owner: "Fresh Market India", colorVar: "var(--amber)" },
-  { name: "FRESHWAY", app: "5621043", cls: "29", similarity: 72, status: "registered", owner: "Freshway Exports", colorVar: "var(--amber)" },
-  { name: "FRESH BASKET", app: "5512334", cls: "30", similarity: 60, status: "registered", owner: "Basket Foods", colorVar: "var(--sky)" },
-  { name: "FRESHMADE", app: "5489231", cls: "43", similarity: 53, status: "pending", owner: "FreshMade Kitchen", colorVar: "var(--text3)" },
-]
-
-const chipMap = { registered: "chip-registered", pending: "chip-pending" }
+const chipMap = { hearing: "chip-hearing", objected: "chip-objected", pending: "chip-pending", registered: "chip-registered", refused: "chip-refused" }
 
 export default function Search() {
-  const [searchName, setSearchName] = useState("")
-  const [searchClass, setSearchClass] = useState("")
-  const [searching, setSearching] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [query, setQuery] = useState("")
+  const [tmClass, setTmClass] = useState("")
+  const [searchType, setSearchType] = useState("wordmark")
   const [results, setResults] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const runSearch = () => {
-    setSearching(true)
-    setProgress(0)
+  const handleSearch = async () => {
+    if (!query.trim()) return
+    setLoading(true)
+    setError("")
     setResults(null)
-    let w = 0
-    const iv = setInterval(() => {
-      w += 15
-      setProgress(Math.min(w, 100))
-      if (w >= 100) {
-        clearInterval(iv)
-        setSearching(false)
-        setResults(mockResults)
-      }
-    }, 100)
+    try {
+      const data = await fetchPublicSearch({ q: query, class: tmClass, type: searchType })
+      setResults(data.results || [])
+    } catch (e) {
+      setError("Could not reach the backend. Make sure the MarkShield backend server is running.")
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const handleKey = (e) => { if (e.key === "Enter") handleSearch() }
 
   return (
     <>
       <div className="search-panel">
-        <h3>🔍 AI-Powered Trademark Search</h3>
+        <h3>🔍 IP India Public Trademark Search</h3>
         <div className="search-form">
           <div className="sf-group" style={{ flex: 2 }}>
-            <label>Trademark Name</label>
-            <input type="text" placeholder="e.g. FRESHMART" value={searchName} onChange={(e) => setSearchName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && runSearch()} />
+            <label>Trademark / Word Mark</label>
+            <input
+              type="text"
+              placeholder="e.g. FRESHMART"
+              value={query}
+              onChange={e => setQuery(e.target.value.toUpperCase())}
+              onKeyDown={handleKey}
+              autoFocus
+            />
           </div>
           <div className="sf-group">
-            <label>Class</label>
-            <select value={searchClass} onChange={(e) => setSearchClass(e.target.value)}>
+            <label>Nice Class</label>
+            <select value={tmClass} onChange={e => setTmClass(e.target.value)}>
               <option value="">All Classes</option>
-              <option>Class 29 — Food</option>
-              <option>Class 35 — Retail</option>
-              <option>Class 9 — Electronics</option>
-              <option>Class 42 — Software</option>
-              <option>Class 25 — Clothing</option>
+              {Array.from({length: 45}, (_, i) => i + 1).map(c => (
+                <option key={c} value={String(c)}>Class {c}</option>
+              ))}
             </select>
           </div>
           <div className="sf-group">
-            <label>Type</label>
-            <select>
-              <option>Word Mark</option>
-              <option>Device Mark</option>
-              <option>Combined</option>
+            <label>Search Type</label>
+            <select value={searchType} onChange={e => setSearchType(e.target.value)}>
+              <option value="wordmark">Word Mark</option>
+              <option value="proprietor">Proprietor</option>
+              <option value="application">Application No.</option>
             </select>
           </div>
-          <div className="sf-group" style={{ flex: 0, minWidth: "auto", justifyContent: "flex-end" }}>
+          <div className="sf-group" style={{ flex: 0, minWidth: "auto" }}>
             <label>&nbsp;</label>
-            <button className="topbar-btn btn-primary" onClick={runSearch} disabled={searching}>
-              {searching ? "Searching..." : "Search →"}
+            <button className="topbar-btn btn-primary" onClick={handleSearch} disabled={loading || !query.trim()}>
+              {loading ? "Searching..." : "🔍 Search"}
             </button>
           </div>
         </div>
 
-        {searching && (
-          <div className="progress-bar-wrap">
-            <div className="progress-bar-fill" style={{ width: progress + "%" }} />
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+          {["FRESHMART", "TECHVEDA", "ZENSPA", "ROYALE"].map(q => (
+            <button key={q} className="qchip" onClick={() => { setQuery(q); }}>
+              {q}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {results && (
-        <>
-          <div style={{ marginBottom: 14, fontSize: 13, color: "var(--text2)" }}>
-            Found <b>{results.length} results</b> for <b>"{searchName || "FRESHMART"}"</b> — AI similarity scores calculated
-          </div>
-          <div className="results-grid">
-            {results.map((r) => (
-              <div key={r.app} className="result-card">
-                <div className="rc-head">
-                  <div>
-                    <div className="rc-name">{r.name}</div>
-                    <div className="rc-num">{r.app}</div>
-                  </div>
-                  <span className={`chip ${chipMap[r.status] || "chip-pending"}`}>{r.status}</span>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>{r.owner}</div>
-                <div className="rc-meta">
-                  <span className="rc-tag">Class {r.cls}</span>
-                </div>
-                <div className="rc-footer">
-                  <div className="rc-owner" style={{ fontSize: 11 }}>Similarity Score</div>
-                  <div className="rc-similarity" style={{ color: r.colorVar }}>{r.similarity}%</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+      {error && (
+        <div style={{ background: "rgba(244,63,94,.08)", border: "1px solid rgba(244,63,94,.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "var(--rose)" }}>
+          ⚠ {error}
+        </div>
       )}
+
+      {loading && (
+        <div style={{ textAlign: "center", padding: 60, color: "var(--text3)", fontSize: 14 }}>
+          <div style={{ width: 32, height: 32, border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 16px" }} />
+          Searching IP India database...
+        </div>
+      )}
+
+      {results !== null && !loading && (
+        results.length === 0 ? (
+          <div className="card">
+            <div className="empty-state">
+              <div style={{ fontSize: 36 }}>🔍</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>No results found</div>
+              <div style={{ fontSize: 13, color: "var(--text3)" }}>
+                Try a different search term or check the backend connection.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 14, fontSize: 13, color: "var(--text3)" }}>
+              {results.length} result{results.length !== 1 ? "s" : ""} found for <b style={{ color: "var(--text)" }}>"{query}"</b>
+              {tmClass && ` in Class ${tmClass}`}
+            </div>
+            <div className="results-grid">
+              {results.map((r, i) => (
+                <div key={i} className="result-card"
+                  onClick={() => window.open(`https://tmrsearch.ipindia.gov.in/eregister/Application_View_Trademark.aspx?AppNosValue=${r.app_no}`, "_blank")}
+                >
+                  <div className="rc-head">
+                    <div>
+                      <div className="rc-name">{r.trademark || r.app_no}</div>
+                      <div className="rc-num">App: {r.app_no}</div>
+                    </div>
+                    {r.status && (
+                      <span className={`chip ${chipMap[r.status?.toLowerCase()] || "chip-pending"}`}>
+                        {r.status}
+                      </span>
+                    )}
+                  </div>
+                  <div className="rc-meta">
+                    {r.class && <span className="rc-tag">Class {r.class}</span>}
+                    {r.valid_upto && <span className="rc-tag">Valid: {r.valid_upto}</span>}
+                  </div>
+                  <div className="rc-footer">
+                    <span className="rc-owner">{r.proprietor}</span>
+                    <span style={{ fontSize: 11, color: "var(--accent-light)" }}>View ↗</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      )}
+
+      {results === null && !loading && (
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-icon">🔍</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>Search the IP India Database</div>
+            <div style={{ fontSize: 13, color: "var(--text3)", maxWidth: 360, lineHeight: 1.6 }}>
+              Enter a trademark name, proprietor name, or application number above to search
+              the live IP India public trademark database.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Backend notice */}
+      <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--s2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, color: "var(--text3)", display: "flex", alignItems: "center", gap: 8 }}>
+        <span>🔗</span>
+        <span>Search is live — powered by the MarkShield backend scraping <b style={{ color: "var(--text2)" }}>tmrsearch.ipindia.gov.in</b>.
+        Start the backend with <code style={{ fontFamily: "var(--mono)", color: "#f0c842" }}>cd backend && python app.py</code>.</span>
+      </div>
     </>
   )
 }
