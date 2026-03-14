@@ -11,6 +11,7 @@ from routes import (
     bp_efiling,
     bp_portfolio
 )
+
 # ── logging ───────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -24,10 +25,10 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.getenv("SECRET_KEY", "markshield-dev-2026")
 
-    # ── CORS (manual, no extra dep) ───────────────────────
+    # ── CORS ──────────────────────────────────────────────
     @app.after_request
     def cors(r):
-        r.headers["Access-Control-Allow-Origin"]  = "*"
+        r.headers["Access-Control-Allow-Origin"] = "*"
         r.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
         r.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
         return r
@@ -38,30 +39,30 @@ def create_app():
             return Response(status=200)
 
     # ── blueprints ────────────────────────────────────────
-    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_auth, bp_notify, bp_queue, bp_export]:
+    for bp in [
+        bp_cause,
+        bp_app,
+        bp_agent,
+        bp_search,
+        bp_efiling,
+        bp_portfolio
+    ]:
         app.register_blueprint(bp, url_prefix="/api")
 
     # ── health ────────────────────────────────────────────
     @app.route("/api/health")
     def health():
         return jsonify({
-            "status":  "ok",
+            "status": "ok",
             "service": "MarkShield IP India Backend",
             "version": "3.0.0",
-            "time":    datetime.utcnow().isoformat() + "Z",
+            "time": datetime.utcnow().isoformat() + "Z",
             "features": {
-                "scraper":            True,
+                "scraper": True,
                 "agent_registration": True,
-                "google_calendar":    bool(os.getenv("GOOGLE_CLIENT_ID")),
-                "gmail_reminders":    bool(os.getenv("GOOGLE_CLIENT_ID")),
-            },
-            "sources": {
-                "cause_list":    "tmrsearch.ipindia.gov.in/TMRDynamicUtility/CauseListForHearingCase/Index",
-                "eregister":     "tmrsearch.ipindia.gov.in/eregister/",
-                "public_search": "tmrsearch.ipindia.gov.in/tmrpublicsearch/",
-                "efiling":       "ipindiaonline.gov.in/trademarkefiling/",
-                "tla_queue":     "ipindiaonline.gov.in/trademarkefiling/DynamicUtilities/TLA_QueueList_new.aspx",
-            },
+                "google_calendar": bool(os.getenv("GOOGLE_CLIENT_ID")),
+                "gmail_reminders": bool(os.getenv("GOOGLE_CLIENT_ID")),
+            }
         })
 
     @app.route("/")
@@ -69,10 +70,12 @@ def create_app():
         return jsonify({"message": "MarkShield API", "health": "/api/health"})
 
     @app.errorhandler(404)
-    def e404(e): return jsonify({"error": "Not found"}), 404
+    def e404(e):
+        return jsonify({"error": "Not found"}), 404
 
     @app.errorhandler(500)
-    def e500(e): return jsonify({"error": "Internal server error"}), 500
+    def e500(e):
+        return jsonify({"error": "Internal server error"}), 500
 
     return app
 
