@@ -5,7 +5,7 @@ from .search import bp_search
 from .efiling import bp_efiling
 from .portfolio import bp_portfolio
 
-**all** = [
+__all__ = [
 "bp_cause",
 "bp_app",
 "bp_agent",
