@@ -137,6 +137,14 @@ export function fetchApplicationsBulk(appNos) {
 
 export function fetchAppsBulk(appNos) { return fetchApplicationsBulk(appNos) }
 
+// ── TMA Verification (public — no CAPTCHA needed) ────────────────────────────
+export function verifyTMA(tmaCode) {
+  return apiFetch("/verify-tma", {
+    method: "POST",
+    body: JSON.stringify({ tma_code: tmaCode })
+  }, 30000)
+}
+
 // ── AI Chat ───────────────────────────────────────────────────────────────────
 // Routes through backend to avoid CORS — never calls Anthropic directly from browser
 
