@@ -22,3 +22,21 @@ services:
         generateValue: true
       - key: PYTHON_VERSION
         value: 3.11.0
+
+  # ── Nightly Sync Scheduler (background worker) ─────────────────────────────
+  - type: worker
+    name: markshield-scheduler
+    env: python
+    rootDir: backend
+    buildCommand: apt-get install -y tesseract-ocr && pip install -r requirements.txt && playwright install chromium
+    startCommand: python sync_scheduler.py
+    envVars:
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: backend-markshield
+          envVarKey: SECRET_KEY
+      - key: SYNC_TMA_CODES
+        value: ""
+      - key: PYTHON_VERSION
+        value: 3.11.0
