@@ -560,49 +560,50 @@ class EFilingClient:
 
     def get_captcha(self) -> dict:
         """
-        Fetch captcha image from IP India login page.
-        Returns base64 captcha image + viewstate values.
+        Fetch CAPTCHA image from IP India login page.
+        Also attempts auto-solve using ddddocr / tesseract.
+        Returns:
+          { success, captcha: "<base64>", auto_solved: True/False, solved_text: "26HD4" }
         """
-
         try:
             self._wait()
-
-            page = self.s.get(
-                URL["efiling_login"],
-                timeout=45,
-                verify=False
-            )
-
+            page = self.s.get(URL["efiling_login"], timeout=45, verify=False)
             soup = BeautifulSoup(page.text, "lxml")
 
             vs = self._get_viewstate(soup)
             self.viewstate = vs
 
-            img = soup.find("img", {"id": "ctl00_ContentPlaceHolder1_imgCaptcha"})
+            img_tag = soup.find("img", {"id": "ctl00_ContentPlaceHolder1_imgCaptcha"})
+            if not img_tag:
+                return {"success": False, "message": "CAPTCHA image not found on page"}
 
-            if not img:
-                return {
-                    "success": False,
-                    "message": "Captcha image not found on page"
-                }
+            captcha_url = "https://ipindiaonline.gov.in" + img_tag["src"]
+            img_resp = self.s.get(captcha_url, timeout=45, verify=False)
+            img_bytes = img_resp.content
+            captcha_b64 = base64.b64encode(img_bytes).decode()
 
-            captcha_url = "https://ipindiaonline.gov.in" + img["src"]
+            # ── Auto-solve attempt ────────────────────────────────────────
+            try:
+                import sys, os
+                sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                from captcha_solver import solve_captcha
+                solved = solve_captcha(img_bytes)
+            except Exception as se:
+                log.warning(f"CAPTCHA solver import error: {se}")
+                solved = {"solved": False, "text": None, "method": "none"}
 
-            image = self.s.get(
-                captcha_url,
-                timeout=45,
-                verify=False
-            )
-
-            captcha_base64 = base64.b64encode(image.content).decode()
+            log.info(f"CAPTCHA auto-solve: {solved}")
 
             return {
                 "success": True,
-                "captcha": captcha_base64
+                "captcha": captcha_b64,
+                "auto_solved": solved["solved"],
+                "solved_text": solved.get("text"),
+                "solve_method": solved.get("method", "none"),
             }
 
         except Exception as e:
-            log.error(f"Captcha fetch error: {e}")
+            log.error(f"CAPTCHA fetch error: {e}")
             return {"success": False, "message": str(e)}
 
     # -------------------------------------------------------
