@@ -31,8 +31,8 @@ const LS = {
 }
 
 const KEYS = {
-  session:     "ms_session",      // { currentUser, agentProfile, tmaData, authStage }
-  setupDone:   "ms_setup_done",   // boolean — skip setup if already completed
+  session:  "ms_session",   // { currentUser, authStage } — cleared on logout
+  profiles: "ms_profiles",  // { [username]: { agentProfile, tmaData } } — NEVER cleared on logout
 }
 
 export default function App() {
@@ -41,15 +41,33 @@ export default function App() {
 
   const [authStage,    setAuthStage]    = useState(saved.authStage    || "login")
   const [currentUser,  setCurrentUser]  = useState(saved.currentUser  || null)
-  const [tmaData,      setTmaData]      = useState(saved.tmaData      || null)
-  const [agentProfile, setAgentProfile] = useState(saved.agentProfile || {})
+  const [tmaData,      setTmaData]      = useState(() => {
+    // If session is active, restore tmaData from per-user profiles store
+    if (saved.authStage === "app" && saved.currentUser?.username) {
+      const profiles = LS.get(KEYS.profiles, {})
+      return profiles[saved.currentUser.username]?.tmaData || null
+    }
+    return null
+  })
+  const [agentProfile, setAgentProfile] = useState(() => {
+    if (saved.authStage === "app" && saved.currentUser?.username) {
+      const profiles = LS.get(KEYS.profiles, {})
+      return profiles[saved.currentUser.username]?.agentProfile || {}
+    }
+    return {}
+  })
 
   // ── Persist session whenever it changes ──────────────────────────────────
   useEffect(() => {
     if (authStage === "app" && currentUser) {
-      LS.set(KEYS.session, { authStage, currentUser, tmaData, agentProfile })
+      // Save lightweight session (just who is logged in + stage)
+      LS.set(KEYS.session, { authStage, currentUser })
+      // Save setup data keyed by username so it survives logout
+      const profiles = LS.get(KEYS.profiles, {})
+      profiles[currentUser.username] = { agentProfile, tmaData }
+      LS.set(KEYS.profiles, profiles)
     } else if (authStage === "login") {
-      // Clear session on logout
+      // Only clear the session token — NOT the profiles store
       LS.del(KEYS.session)
     }
   }, [authStage, currentUser, tmaData, agentProfile])
@@ -57,13 +75,16 @@ export default function App() {
   // ── Auth handlers ─────────────────────────────────────────────────────────
   const handleLoginSuccess = (user) => {
     setCurrentUser(user)
-    // If this user has already completed setup before, go straight to app
-    const prevSession = LS.get(KEYS.session, {})
-    if (prevSession.authStage === "app" && prevSession.currentUser?.username === user.username) {
-      setAgentProfile(prevSession.agentProfile || {})
-      setTmaData(prevSession.tmaData || null)
+    // Check per-user profiles store (survives logout)
+    const profiles = LS.get(KEYS.profiles, {})
+    const userProfile = profiles[user.username]
+    if (userProfile) {
+      // User has completed setup before — restore their data and go straight to app
+      setAgentProfile(userProfile.agentProfile || {})
+      setTmaData(userProfile.tmaData || null)
       setAuthStage("app")
     } else {
+      // First time for this user — run setup
       setAuthStage("setup")
     }
   }
@@ -79,6 +100,7 @@ export default function App() {
   }
 
   const handleLogout = () => {
+    // Clear session but KEEP profiles so setup isn't repeated on next login
     LS.del(KEYS.session)
     setAuthStage("login")
     setCurrentUser(null)
