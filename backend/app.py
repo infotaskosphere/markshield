@@ -17,6 +17,7 @@ from routes import (
     bp_ai,
     bp_import,
     bp_estatus,
+    bp_efiling_login,
 )
 
 logging.basicConfig(
@@ -45,7 +46,7 @@ def create_app():
             return Response(status=200)
 
     # ── Register all blueprints ───────────────────────────────────────────────
-    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_queue, bp_ai, bp_import, bp_estatus]:
+    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_queue, bp_ai, bp_import, bp_estatus, bp_efiling_login]:
         app.register_blueprint(bp, url_prefix="/api")
 
     # ── Health check ──────────────────────────────────────────────────────────
