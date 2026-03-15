@@ -18,7 +18,7 @@ export default function TMASetup({ currentUser, onComplete, onSkip, rerunMode, e
   })
 
   // Step 3 — TMA Verify
-  const [tmaCode,    setTmaCode]    = useState(existingProfile?.barNo || "")
+  const [tmaCode,    setTmaCode]    = useState(existingProfile?.barNo || existingProfile?.portalUser || currentUser?.tmCode || "")
   const [verifyLog,  setVerifyLog]  = useState([])
   const [progress,   setProgress]   = useState(0)
   const [tmaData,    setTmaData]    = useState(null)
