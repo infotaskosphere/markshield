@@ -1,0 +1,208 @@
+"""
+captcha_solver.py — MarkShield Automatic CAPTCHA Solver
+=========================================================
+Solves IP India-style CAPTCHAs (capital letters + numbers, noisy background).
+
+Strategy (in order of preference):
+  1. ddddocr          — best ML model for this CAPTCHA type (~90% accuracy)
+  2. pytesseract       — free OCR with aggressive preprocessing (~65% accuracy)
+  3. Manual fallback   — return None so frontend can show CAPTCHA to user
+
+The solver tries each method and returns the best result.
+Add CAPTCHA_SERVICE=2captcha or CAPTCHA_SERVICE=anticaptcha in .env
+plus their API key for near-100% accuracy (paid, ~$1/1000 CAPTCHAs).
+"""
+
+import io, os, base64, logging, re
+log = logging.getLogger("markshield.captcha")
+
+# ── Pillow (always available) ──────────────────────────────────────────────────
+from PIL import Image, ImageFilter, ImageEnhance, ImageOps
+
+
+def _preprocess(img_bytes: bytes) -> "Image":
+    """
+    Aggressive preprocessing optimised for IP India's CAPTCHA:
+    - Red/black distorted text on noisy white/grey background
+    - ~150x50 pixels at source
+    """
+    img = Image.open(io.BytesIO(img_bytes)).convert("L")   # grayscale
+
+    # Scale up — tesseract works much better at higher resolution
+    w, h = img.size
+    img = img.resize((w * 3, h * 3), Image.LANCZOS)
+
+    # Boost contrast so text stands out
+    img = ImageEnhance.Contrast(img).enhance(3.5)
+    img = ImageEnhance.Sharpness(img).enhance(2.0)
+
+    # Binarise — removes background noise
+    img = img.point(lambda px: 0 if px < 140 else 255, "1")
+    img = img.convert("L")
+
+    # Remove isolated noise pixels (median filter)
+    img = img.filter(ImageFilter.MedianFilter(size=3))
+
+    return img
+
+
+def _clean(text: str) -> str:
+    """Strip non-alphanumeric chars and uppercase."""
+    return re.sub(r"[^A-Z0-9]", "", text.upper()).strip()
+
+
+# ── Method 1: ddddocr ─────────────────────────────────────────────────────────
+def _solve_ddddocr(img_bytes: bytes) -> str | None:
+    try:
+        import ddddocr
+        ocr = ddddocr.DdddOcr(show_ad=False)
+        result = ocr.classification(img_bytes)
+        cleaned = _clean(result)
+        if len(cleaned) >= 4:
+            log.info(f"ddddocr result: {cleaned}")
+            return cleaned
+    except ImportError:
+        pass   # not installed — skip silently
+    except Exception as e:
+        log.warning(f"ddddocr failed: {e}")
+    return None
+
+
+# ── Method 2: pytesseract ─────────────────────────────────────────────────────
+def _solve_tesseract(img_bytes: bytes) -> str | None:
+    try:
+        import pytesseract
+
+        img = _preprocess(img_bytes)
+
+        # Try several PSM modes — pick the one that gives a clean 4-6 char result
+        configs = [
+            "--oem 3 --psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            "--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            "--oem 1 --psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            "--oem 1 --psm 13 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        ]
+
+        results = []
+        for cfg in configs:
+            try:
+                raw = pytesseract.image_to_string(img, config=cfg)
+                cleaned = _clean(raw)
+                if 4 <= len(cleaned) <= 7:
+                    results.append(cleaned)
+            except Exception:
+                pass
+
+        if results:
+            # Pick the most common result, or first if all different
+            best = max(set(results), key=results.count)
+            log.info(f"tesseract result: {best} (candidates: {results})")
+            return best
+
+    except ImportError:
+        log.warning("pytesseract not installed")
+    except Exception as e:
+        log.warning(f"tesseract failed: {e}")
+
+    return None
+
+
+# ── Method 3: 2captcha / Anti-Captcha API ─────────────────────────────────────
+def _solve_api_service(img_bytes: bytes) -> str | None:
+    """
+    Optional paid service for near-100% accuracy.
+    Set in .env:
+      CAPTCHA_SERVICE=2captcha
+      CAPTCHA_API_KEY=your_key_here
+    Cost: ~$1 per 1000 CAPTCHAs (very cheap for professional use).
+    """
+    service = os.getenv("CAPTCHA_SERVICE", "").lower()
+    api_key = os.getenv("CAPTCHA_API_KEY", "")
+
+    if not service or not api_key:
+        return None
+
+    try:
+        import requests as req
+        b64 = base64.b64encode(img_bytes).decode()
+
+        if service == "2captcha":
+            # Submit
+            r = req.post("https://2captcha.com/in.php", data={
+                "key": api_key, "method": "base64",
+                "body": b64, "json": 1
+            }, timeout=15)
+            task_id = r.json().get("request")
+            if not task_id:
+                return None
+            # Poll for result (2captcha usually takes 10-20s)
+            import time
+            for _ in range(12):
+                time.sleep(5)
+                r2 = req.get(f"https://2captcha.com/res.php?key={api_key}&action=get&id={task_id}&json=1", timeout=10)
+                data = r2.json()
+                if data.get("status") == 1:
+                    result = _clean(data.get("request", ""))
+                    log.info(f"2captcha result: {result}")
+                    return result
+                if data.get("request") == "ERROR_CAPTCHA_UNSOLVABLE":
+                    break
+
+        elif service == "anticaptcha":
+            r = req.post("https://api.anti-captcha.com/createTask", json={
+                "clientKey": api_key,
+                "task": {"type": "ImageToTextTask", "body": b64}
+            }, timeout=15)
+            task_id = r.json().get("taskId")
+            if not task_id:
+                return None
+            import time
+            for _ in range(12):
+                time.sleep(5)
+                r2 = req.post("https://api.anti-captcha.com/getTaskResult", json={
+                    "clientKey": api_key, "taskId": task_id
+                }, timeout=10)
+                data = r2.json()
+                if data.get("status") == "ready":
+                    result = _clean(data.get("solution", {}).get("text", ""))
+                    log.info(f"anticaptcha result: {result}")
+                    return result
+
+    except Exception as e:
+        log.warning(f"CAPTCHA API service failed: {e}")
+
+    return None
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def solve_captcha(img_bytes: bytes) -> dict:
+    """
+    Try all available solvers in order.
+    Returns:
+      { "solved": True,  "text": "26HD4", "method": "ddddocr" }
+      { "solved": False, "text": None,    "method": "none" }  ← show to user
+    """
+    # Priority 1: paid API (most reliable if configured)
+    result = _solve_api_service(img_bytes)
+    if result:
+        return {"solved": True, "text": result, "method": os.getenv("CAPTCHA_SERVICE", "api")}
+
+    # Priority 2: ddddocr ML model
+    result = _solve_ddddocr(img_bytes)
+    if result:
+        return {"solved": True, "text": result, "method": "ddddocr"}
+
+    # Priority 3: pytesseract with preprocessing
+    result = _solve_tesseract(img_bytes)
+    if result:
+        return {"solved": True, "text": result, "method": "tesseract"}
+
+    # Fallback: return None — frontend will show CAPTCHA image to user
+    log.warning("All CAPTCHA solvers failed — falling back to manual")
+    return {"solved": False, "text": None, "method": "none"}
+
+
+def solve_captcha_b64(b64_string: str) -> dict:
+    """Convenience wrapper — accepts base64 string instead of raw bytes."""
+    return solve_captcha(base64.b64decode(b64_string))
