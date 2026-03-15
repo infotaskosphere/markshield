@@ -137,6 +137,16 @@ export function fetchApplicationsBulk(appNos) {
 
 export function fetchAppsBulk(appNos) { return fetchApplicationsBulk(appNos) }
 
+// ── AI Chat ───────────────────────────────────────────────────────────────────
+// Routes through backend to avoid CORS — never calls Anthropic directly from browser
+
+export function fetchAIChat(messages, system) {
+  return apiFetch("/ai/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages: messages, system: system || "" })
+  }, 50000)
+}
+
 // ── Queue List ────────────────────────────────────────────────────────────────
 
 export function fetchQueueList(opts) {
