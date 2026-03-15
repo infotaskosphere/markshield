@@ -43,21 +43,18 @@ export default function AI({ context }) {
     setLoading(true)
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: CLAUDE_SYSTEM,
-          messages: [{ role: "user", content: msg }],
-        }),
-      })
-      const data = await res.json()
-      const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Please try again."
+      // Build conversation history for multi-turn context
+      const history = messages
+        .filter(m => !m.typing && m.role !== "ai" || (m.role === "ai" && m.text !== "..."))
+        .map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text }))
+        .filter(m => m.content && m.content !== "...")
+      history.push({ role: "user", content: msg })
+
+      const data = await import("../services/api").then(api => api.fetchAIChat(history, CLAUDE_SYSTEM))
+      const reply = data.reply || "Sorry, I couldn\'t get a response. Please try again."
       setMessages(m => [...m.filter(x => !x.typing), { role: "ai", text: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }])
     } catch (e) {
-      setMessages(m => [...m.filter(x => !x.typing), { role: "ai", text: "Connection error. Please check your network and try again.", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }])
+      setMessages(m => [...m.filter(x => !x.typing), { role: "ai", text: "Connection error — backend may be waking up. Please wait 30s and try again.", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }])
     }
     setLoading(false)
   }
