@@ -198,6 +198,7 @@ export default function App() {
           <Route path="reports"    element={<Reports      context={appContext} />} />
           <Route path="draft"      element={<Draft        context={appContext} />} />
           <Route path="team"       element={<Team         context={appContext} />} />
+          <Route path="import"     element={<Import       context={appContext} />} />
         </Route>
       </Routes>
     </BrowserRouter>
