@@ -66,6 +66,32 @@ def get_captcha():
         return jsonify({"success": False, "error": str(e)}), 502
 
 
+@bp_efiling_login.route("/efiling-session/fields")
+def get_fields():
+    """Debug: returns all form field names from IP India login page"""
+    try:
+        import requests, urllib3
+        from bs4 import BeautifulSoup
+        urllib3.disable_warnings()
+        LOGIN_URL = "https://ipindiaonline.gov.in/trademarkefiling/user/frmLoginNew.aspx"
+        HEADERS   = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36"}
+        s = requests.Session()
+        s.headers.update(HEADERS)
+        resp = s.get(LOGIN_URL, timeout=20)
+        soup = BeautifulSoup(resp.text, "lxml")
+        fields = []
+        for inp in soup.find_all("input"):
+            fields.append({
+                "name": inp.get("name",""),
+                "id":   inp.get("id",""),
+                "type": inp.get("type","text"),
+                "placeholder": inp.get("placeholder",""),
+            })
+        return jsonify({"fields": fields, "url": resp.url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
 @bp_efiling_login.route("/efiling-session/login-manual", methods=["POST"])
 def login_manual():
     """
@@ -101,17 +127,33 @@ def login_manual():
                 s.cookies.set(k, v)
 
             form = dict(hidden_fields)
-            # Fill username
-            for n in ["ctl00$ContentPlaceHolder1$txtUserName","txtUserName","UserName"]:
-                form[n] = username
-            # Fill password
-            for n in ["ctl00$ContentPlaceHolder1$txtPassword","txtPassword","Password"]:
-                form[n] = password
-            # Fill captcha
-            for n in ["ctl00$ContentPlaceHolder1$txtCaptcha","txtCaptcha","CaptchaText"]:
-                form[n] = captcha_text
-            # Submit button
-            form["ctl00$ContentPlaceHolder1$btnLogin"] = "Login"
+
+            # Re-fetch page to get fresh VIEWSTATE + EVENTVALIDATION
+            resp_check = s.get(LOGIN_URL, timeout=15, verify=True)
+            from bs4 import BeautifulSoup as BS
+            soup_check = BS(resp_check.text, "lxml")
+
+            # Update hidden fields with fresh values
+            for inp in soup_check.find_all("input", {"type": "hidden"}):
+                n = inp.get("name") or inp.get("id")
+                if n:
+                    form[n] = inp.get("value", "")
+
+            # CONFIRMED field names from IP India eFiling login page
+            # (ASP.NET WebForms with ContentPlaceHolder1)
+            form["ctl00$ContentPlaceHolder1$txtUserName"] = username
+            form["ctl00$ContentPlaceHolder1$txtPassword"] = password
+            form["ctl00$ContentPlaceHolder1$txtCaptcha"]  = captcha_text
+            form["ctl00$ContentPlaceHolder1$btnLogin"]    = "Login"
+            # Login type: 0 = Password, 1 = Digital Signature
+            form["ctl00$ContentPlaceHolder1$rdlLoginType"] = "0"
+
+            # Also try alternate field names as fallback
+            form["txtUserName"] = username
+            form["txtPassword"] = password
+            form["txtCaptcha"]  = captcha_text
+
+            log.info(f"Submitting login for user: {username}, captcha: {captcha_text}")
 
             cb("Submitting login form…", 30)
             resp = s.post(
