@@ -19,7 +19,9 @@ const NAV = [
   { section: "Drafting" },
   { to: "/draft", icon: "✍", label: "Draft a Reply", badge: "AI", badgeCls: "teal" },
   { section: "Team" },
-  { to: "/team", icon: "👥", label: "Team Members" },
+  { to: "/team",   icon: "👥", label: "Team Members" },
+  { section: "Data" },
+  { to: "/import", icon: "📥", label: "Bulk Import",  badge: "DB", badgeCls: "blue" },
 ]
 
 // ── Profile Edit Modal ────────────────────────────────────────────────────────
