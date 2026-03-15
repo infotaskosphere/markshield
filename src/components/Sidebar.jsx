@@ -197,18 +197,23 @@ export default function Sidebar({ context, mobileOpen, onClose }) {
       )}
 
       <aside className={`sidebar${mobileOpen ? " sidebar-mobile-open" : ""}`}>
-        <div className="logo-area">
+        <div className="logo-area" style={{ justifyContent: "space-between" }}>
+          <img
+            src="/logo.png"
+            alt="MarkShield"
+            style={{ height: 40, width: "auto", objectFit: "contain" }}
+            onError={e => {
+              e.target.style.display = "none"
+              e.target.nextSibling.style.display = "flex"
+            }}
+          />
+          <div style={{ display: "none", alignItems: "center", gap: 10 }}>
+            <div className="logo-mark">⚖</div>
+            <div>
+              <div className="logo-name">Mark<em>Shield</em></div>
+            </div>
+          </div>
           <button onClick={onClose} className="sidebar-close-btn">✕</button>
-          <div className="logo-mark" style={{ overflow: "hidden", padding: 0 }}>
-            <img src="/logo.png" alt="MarkShield"
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 9 }}
-              onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex" }} />
-            <span style={{ display: "none", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", fontSize: 17 }}>⚖</span>
-          </div>
-          <div>
-            <div className="logo-name">Mark<em>Shield</em></div>
-            <div className="logo-tag">AI Trademark Platform</div>
-          </div>
         </div>
 
         <div className="nav-scroll">
