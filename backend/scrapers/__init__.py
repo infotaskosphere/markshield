@@ -1,30 +1,24 @@
-# scrapers/__init__.py — MarkShield Scraper Package
-# Core imports (always available)
-from .ipindia import (
-    fetch_cause_list,
-    fetch_public_search,
-    fetch_tla_queue,
-    get_efiling,
-)
-
-# Optional imports — won't crash if new files not deployed yet
-try:
-    from .eregister import fetch_application, fetch_applications_bulk
-except ImportError:
-    from .ipindia import fetch_application, fetch_applications_bulk
+# scrapers/__init__.py
+from .ipindia import fetch_cause_list, fetch_public_search, fetch_tla_queue, get_efiling
 
 try:
-    from .attorney_portfolio import fetch_attorney_portfolio
-except ImportError:
-    def fetch_attorney_portfolio(*a, **kw):
-        return {"error": "attorney_portfolio module not available", "applications": []}
+    from .binbash_api import (
+        get_trademark_by_appno  as fetch_application,
+        bulk_fetch_by_appnos    as fetch_applications_bulk,
+        public_search,
+        get_attorney_portfolio,
+        get_proprietor_trademarks,
+    )
+except Exception:
+    from .ipindia import fetch_application, fetch_applications_bulk  # type: ignore
+
+try:
+    from .eregister import fetch_application as _er_fetch  # fallback only
+except Exception:
+    pass
 
 __all__ = [
-    "fetch_cause_list",
-    "fetch_application",
-    "fetch_applications_bulk",
-    "fetch_public_search",
-    "fetch_tla_queue",
-    "get_efiling",
-    "fetch_attorney_portfolio",
+    "fetch_cause_list", "fetch_application", "fetch_applications_bulk",
+    "fetch_public_search", "fetch_tla_queue", "get_efiling",
+    "get_attorney_portfolio", "get_proprietor_trademarks", "public_search",
 ]
