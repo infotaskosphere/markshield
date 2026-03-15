@@ -75,7 +75,7 @@ def job_sync_portfolio():
     log.info("=== NIGHTLY PORTFOLIO SYNC STARTED ===")
 
     try:
-        from scrapers.ipindia_bulk import sync_attorney_portfolio
+        from scrapers.ipindia_scraper import sync_full_portfolio as sync_attorney_portfolio
         from database import get_all_attorneys
     except ImportError as e:
         log.error(f"Import error: {e}")
@@ -276,8 +276,8 @@ def register_tma_for_sync(tma_code: str, agent_name: str = ""):
             import threading
             def initial_sync():
                 try:
-                    from scrapers.ipindia_bulk import sync_attorney_portfolio
-                    result = sync_attorney_portfolio(tma_code=tma_code, agent_name=agent_name)
+                    from scrapers.ipindia_scraper import sync_full_portfolio
+                    result = sync_full_portfolio(tma_code=tma_code, agent_name=agent_name)
                     log.info(f"Initial sync done for {tma_code}: {len(result.get('applications',[]))} apps")
                 except Exception as e:
                     log.error(f"Initial sync failed for {tma_code}: {e}")
