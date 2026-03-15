@@ -122,36 +122,74 @@ def clear_session():
 def _solve_captcha_html(html: str):
     """
     Find and solve math expression in HTML.
-    Patterns: "7 - 1 = ?", "3+4=?", "8 × 2 = _"
-    Returns (expr_text, answer) or (None, None)
+    IP India eStatus shows: "Evaluate the Expression  7 - 1 = ?"
+    The numbers and operators may be in separate spans/tds.
     """
     soup = BeautifulSoup(html, "lxml")
 
-    # Try every element's text
-    for el in soup.find_all(True):
-        text = el.get_text(" ", strip=True)
-        m = re.search(r"(\d+)\s*([\+\-\*×x\/÷])\s*(\d+)\s*[=]\s*[\?_]", text)
-        if m:
-            a  = int(m.group(1))
-            op = m.group(2)
-            b  = int(m.group(3))
-            ans = {
-                "+": a + b,
-                "-": a - b,
-                "*": a * b, "×": a * b, "x": a * b,
-                "/": a // b if b else 0, "÷": a // b if b else 0,
-            }.get(op, 0)
-            expr = m.group(0)
-            log.info(f"Captcha solved: {expr} → {ans}")
-            return expr, ans
+    OPS = {"+":lambda a,b:a+b, "-":lambda a,b:a-b,
+           "*":lambda a,b:a*b, "×":lambda a,b:a*b, "x":lambda a,b:a*b,
+           "/":lambda a,b:a//b if b else 0, "÷":lambda a,b:a//b if b else 0}
 
-    # Also try raw HTML (sometimes wrapped in spans)
-    m = re.search(r"(\d+)\s*([\+\-\*×x\/÷])\s*(\d+)\s*[=]\s*[\?_]", html)
+    PAT = re.compile(r"(\d+)\s*([\+\-\*×x\/÷])\s*(\d+)\s*[=\?]")
+
+    # Strategy 1: full page text (handles split elements)
+    full_text = soup.get_text(" ")
+    # collapse whitespace
+    full_text = re.sub(r"\s+", " ", full_text)
+    m = PAT.search(full_text)
     if m:
         a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
-        ans = {"+":a+b,"-":a-b,"*":a*b,"×":a*b,"x":a*b,"/":a//b if b else 0,"÷":a//b if b else 0}.get(op,0)
+        ans = OPS.get(op, lambda a,b:0)(a,b)
+        log.info(f"Captcha (page text): {m.group(0)} → {ans}")
         return m.group(0), ans
 
+    # Strategy 2: raw HTML with entities stripped
+    raw = re.sub(r"<[^>]+>", " ", html)
+    raw = re.sub(r"&[a-z]+;", " ", raw)
+    raw = re.sub(r"\s+", " ", raw)
+    m = PAT.search(raw)
+    if m:
+        a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
+        ans = OPS.get(op, lambda a,b:0)(a,b)
+        log.info(f"Captcha (raw html): {m.group(0)} → {ans}")
+        return m.group(0), ans
+
+    # Strategy 3: look for table/div containing "expression" or "evaluate"
+    for el in soup.find_all(True):
+        t = el.get_text(" ", strip=True)
+        if any(k in t.lower() for k in ["evaluate","expression","captcha"]):
+            # get siblings/children text combined
+            combined = " ".join(c.get_text(" ", strip=True)
+                               for c in el.parent.find_all(True)
+                               if c.get_text(strip=True))
+            combined = re.sub(r"\s+", " ", combined)
+            m = PAT.search(combined)
+            if m:
+                a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
+                ans = OPS.get(op, lambda a,b:0)(a,b)
+                log.info(f"Captcha (sibling): {m.group(0)} → {ans}")
+                return m.group(0), ans
+
+    # Strategy 4: find all numbers on page, check if any form a math expression
+    # IP India puts: label="Evaluate..." then separate cells with "7", "-", "1", "=", "?"
+    cells = [el.get_text(strip=True) for el in soup.find_all(["td","span","div","label"])
+             if el.get_text(strip=True)]
+    for i in range(len(cells)-3):
+        # try 5-token window: num op num = ?
+        try:
+            a_str, op_str, b_str = cells[i], cells[i+1], cells[i+2]
+            if (re.match(r"^\d+$", a_str) and op_str in OPS and
+                    re.match(r"^\d+$", b_str)):
+                a, b = int(a_str), int(b_str)
+                ans = OPS[op_str](a, b)
+                expr = f"{a} {op_str} {b} = ?"
+                log.info(f"Captcha (cell tokens): {expr} → {ans}")
+                return expr, ans
+        except Exception:
+            continue
+
+    log.warning(f"Captcha not found. Page text sample: {full_text[:500]}")
     return None, None
 
 
