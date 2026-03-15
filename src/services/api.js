@@ -62,10 +62,16 @@ export function checkBackend(onRetry) {
 
 // ── eFiling ───────────────────────────────────────────────────────────────────
 
-export function efilingLogin(username, password) {
+// Step 1: Fetch CAPTCHA image (returns { success, captcha: "<base64 PNG>" })
+export function fetchCaptcha() {
+  return apiFetch("/efiling/captcha", {}, 20000)
+}
+
+// Step 2: Login with username + password + captcha text user typed
+export function efilingLogin(username, password, captcha) {
   return apiFetch("/efiling/login", {
     method: "POST",
-    body: JSON.stringify({ username: username, password: password })
+    body: JSON.stringify({ username: username, password: password, captcha: captcha || "" })
   }, 60000)
 }
 
