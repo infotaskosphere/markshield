@@ -207,6 +207,19 @@ def fetch_eregister_single(app_no: str, session=None) -> Dict:
     except Exception as e:
         log.debug(f"GET failed for {app_no}: {e}")
 
+    # Method A2: APEX search (new IP India — JSON based)
+    try:
+        from scrapers.eregister import fetch_via_apex_search
+        apex = fetch_via_apex_search(app_no)
+        if apex and any(apex.get(k) for k in ["trademark_name","status","applicant"]):
+            result.update(apex)
+            result["source"] = "apex_search"
+            upsert_trademark(result)
+            log.info(f"APEX success: {app_no} → {result.get('status','?')}")
+            return result
+    except Exception as e:
+        log.debug(f"APEX fallback failed: {e}")
+
     # Method B: POST to eregister.aspx
     try:
         home = s.get(EREGISTER_URL, timeout=25)
