@@ -1,9 +1,6 @@
-import React, { useState } from "react"
-import { checkBackend, efilingLogin } from "../services/api"
+import React, { useState, useEffect } from "react"
+import { checkBackend, fetchCaptcha, efilingLogin } from "../services/api"
 
-// Realistic log sequence shown during the actual login attempt.
-// Only the FIRST 3 entries are shown before the real API call;
-// the remaining entries are shown only on success.
 const LOG_PREFIX = [
   { t: "info", m: "Initializing secure connection to ipindia.gov.in..." },
   { t: "ok",   m: "TLS handshake complete — connection established" },
@@ -17,7 +14,7 @@ const LOG_SUCCESS_SUFFIX = [
   { t: "ok",   m: "✅ Sync complete — entering MarkShield dashboard" },
 ]
 
-export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnected, setGcalConnected }) {
+export default function TMASetup({ currentUser, onComplete, onSkip }) {
   const [step, setStep] = useState(2)
   const [error, setError] = useState("")
   const [profile, setProfile] = useState({
@@ -25,16 +22,54 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
     firmName: "", email: currentUser?.email || "", mobile: "", phone: "", barNo: "",
     address: "", city: "", state: "", pin: "", portalUser: "", years: "",
   })
-  const [tmaCode, setTmaCode] = useState("")
-  const [tmaPass, setTmaPass] = useState("")
-  const [fetchLog, setFetchLog] = useState([])
+  const [tmaCode,       setTmaCode]       = useState("")
+  const [tmaPass,       setTmaPass]       = useState("")
+  const [captchaImg,    setCaptchaImg]    = useState("")   // base64 PNG
+  const [captchaInput,  setCaptchaInput]  = useState("")   // what user types
+  const [captchaLoading,setCaptchaLoading]= useState(false)
+  const [fetchLog,      setFetchLog]      = useState([])
   const [fetchProgress, setFetchProgress] = useState(0)
-  const [tmaData, setTmaData] = useState(null)
-  const [fetching, setFetching] = useState(false)
-  const [wakeMsg,  setWakeMsg]  = useState("")   // Render cold-start message
+  const [tmaData,       setTmaData]       = useState(null)
+  const [fetching,      setFetching]      = useState(false)
+  const [wakeMsg,       setWakeMsg]       = useState("")
   const [notifLeadTime, setNotifLeadTime] = useState("3")
 
   const fp = (k, v) => setProfile(p => ({ ...p, [k]: v }))
+
+  // Auto-load captcha when user reaches step 3
+  useEffect(() => {
+    if (step === 3 && !captchaImg) {
+      loadCaptcha()
+    }
+  }, [step])
+
+  const [autoSolved,    setAutoSolved]    = useState(false)
+  const [solveMethod,   setSolveMethod]   = useState("")
+
+  const loadCaptcha = async () => {
+    setCaptchaLoading(true)
+    setCaptchaImg("")
+    setCaptchaInput("")
+    setAutoSolved(false)
+    setSolveMethod("")
+    try {
+      const res = await fetchCaptcha()
+      if (res?.success && res.captcha) {
+        setCaptchaImg(res.captcha)
+        if (res.auto_solved && res.solved_text) {
+          // OCR / ML solved it automatically — pre-fill the field
+          setCaptchaInput(res.solved_text)
+          setAutoSolved(true)
+          setSolveMethod(res.solve_method || "auto")
+        }
+      } else {
+        setError("Could not load CAPTCHA — " + (res?.message || "please try again."))
+      }
+    } catch {
+      setError("Could not load CAPTCHA. Check your backend connection.")
+    }
+    setCaptchaLoading(false)
+  }
 
   const goToStep3 = () => {
     setError("")
@@ -50,15 +85,21 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
     setStep(3)
   }
 
+  const addLog = (t, m) =>
+    setFetchLog(prev => [...prev, {
+      t,
+      m: m.replace("{NAME}", profile.fullName).replace("{CITY}", profile.city).replace("{STATE}", profile.state),
+      ts: new Date().toLocaleTimeString()
+    }])
+
   const doFetchTMA = async () => {
-    if (!tmaCode.trim())  { setError("Please enter your TMA code or eFiling username."); return }
-    if (!tmaPass.trim())  { setError("Please enter your eFiling password."); return }
+    if (!tmaCode.trim())   { setError("Please enter your eFiling username."); return }
+    if (!tmaPass.trim())   { setError("Please enter your eFiling password."); return }
+    if (!captchaInput.trim()) { setError("Please enter the CAPTCHA code shown in the image."); return }
+
     setError(""); setFetching(true); setFetchLog([]); setFetchProgress(0); setTmaData(null)
 
-    const addLog = (t, m) =>
-      setFetchLog(prev => [...prev, { t, m: m.replace("{NAME}", profile.fullName).replace("{CITY}", profile.city).replace("{STATE}", profile.state), ts: new Date().toLocaleTimeString() }])
-
-    // Step 1 — Check if backend is reachable (with Render cold-start retry)
+    // Step 1 — Check backend is reachable (handles Render cold-start)
     addLog("info", "⏳ Waking up backend server (Render free tier may take ~30s)…")
     setFetchProgress(5)
 
@@ -66,7 +107,7 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
       const msgs = [
         "Still waking up… Render free tier takes ~30-60s on first request.",
         "Almost there… backend is starting up.",
-        "One more moment… backend is nearly ready.",
+        "One more moment… nearly ready.",
       ]
       setWakeMsg(msgs[attempt - 1] || "Still connecting…")
       addLog("warn", `🔄 Retry ${attempt}/${max} — backend is warming up, please wait…`)
@@ -76,29 +117,27 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
 
     if (!backendUp) {
       addLog("err", "❌ Backend unreachable after multiple attempts.")
-      addLog("warn", "Check your Render dashboard — the backend service may be paused or crashed.")
-      addLog("warn", "Or run locally:  cd backend && python app.py")
+      addLog("warn", "Check your Render dashboard — service may be paused or crashed.")
       setFetchProgress(0)
       setFetching(false)
-      setError("Cannot reach backend. Check your Render service or run the backend locally.")
+      setError("Cannot reach backend. Check your Render service or run it locally.")
       return
     }
     addLog("ok", "✅ Backend is online — connected successfully.")
 
-    // Step 2 — Show prefix logs while making the real API call
+    // Step 2 — Show prefix logs
     for (const entry of LOG_PREFIX) {
       await new Promise(r => setTimeout(r, 300 + Math.random() * 150))
       addLog(entry.t, entry.m)
-      setFetchProgress(prev => prev + 12)
+      setFetchProgress(prev => prev + 10)
     }
-    setFetchProgress(42)
+    setFetchProgress(50)
 
-    // Step 3 — Real login call to backend
+    // Step 3 — Real login with captcha
     try {
-      const result = await efilingLogin(tmaCode.trim(), tmaPass)
+      const result = await efilingLogin(tmaCode.trim(), tmaPass, captchaInput.trim())
 
-      if (result && result.success) {
-        // Success path — show remaining logs
+      if (result?.success) {
         for (const entry of LOG_SUCCESS_SUFFIX) {
           await new Promise(r => setTimeout(r, 280 + Math.random() * 150))
           addLog(entry.t, entry.m)
@@ -106,38 +145,31 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
         }
         setFetchProgress(100)
         setTmaData({
-          name:    profile.fullName,
+          name: profile.fullName,
           tmaCode: result.username || tmaCode.trim(),
-          city:    profile.city,
-          state:   profile.state,
+          username: tmaCode.trim(),
+          city: profile.city, state: profile.state,
           total: 0, registered: 0, hearings: 0, pending: 0,
+          connectedAt: new Date().toISOString(),
         })
       } else {
-        // Failure path — server returned { success: false, message: "..." }
-        const msg = result?.message || "Invalid username or password."
-        addLog("err", `❌ Login failed — ${msg}`)
-        addLog("warn", "Please check your IP India eFiling credentials and try again.")
+        const msg = result?.message || "Login failed."
+        const isCaptchaErr = /captcha/i.test(msg)
+        addLog("err", `❌ ${msg}`)
+        if (isCaptchaErr) {
+          addLog("warn", "🔁 Loading a fresh CAPTCHA — please try again.")
+          await loadCaptcha()
+        } else {
+          addLog("warn", "Please check your IP India eFiling credentials and try again.")
+        }
         setFetchProgress(0)
-        setError(msg)
+        setError(msg + (isCaptchaErr ? " A new CAPTCHA has been loaded." : ""))
       }
     } catch (err) {
-      // Network/timeout error
-      const isTimeout = err?.code === "ECONNABORTED" || err?.message?.includes("timeout")
-      const msg = isTimeout
-        ? "Request timed out — IP India server is slow. Please try again."
-        : (err?.response?.data?.message || err?.message || "Connection error")
-
-      // 401 = wrong password returned by backend
-      if (err?.response?.status === 401) {
-        const serverMsg = err?.response?.data?.message || "Invalid username or password."
-        addLog("err", `❌ Authentication rejected — ${serverMsg}`)
-        addLog("warn", "Please verify your IP India eFiling username and password.")
-        setError(serverMsg)
-      } else {
-        addLog("err", `❌ ${msg}`)
-        setError(msg)
-      }
+      const msg = err?.message || "Connection error"
+      addLog("err", `❌ ${msg}`)
       setFetchProgress(0)
+      setError(msg)
     }
 
     setFetching(false)
@@ -147,20 +179,19 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
     onComplete(profile, tmaData || { name: profile.fullName, tmaCode, city: profile.city, state: profile.state })
   }
 
-  const inputStyle = {
+  const inp = {
     width: "100%", background: "#020610", border: "1.5px solid #1a2545",
     borderRadius: 9, padding: "10px 13px", color: "#dde4f2",
     fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 13, outline: "none",
     transition: "border-color .2s",
   }
-
-  const labelStyle = { display: "block", fontSize: 11, textTransform: "uppercase", letterSpacing: ".1em", color: "#3d4f78", marginBottom: 6 }
-
+  const lbl = { display: "block", fontSize: 11, textTransform: "uppercase", letterSpacing: ".1em", color: "#3d4f78", marginBottom: 6 }
   const clsMap = { info: "#5b9ef8", ok: "#00c4a0", data: "#c4a8ff", warn: "#f0c842", err: "#f43f5e" }
 
   return (
     <div className="auth-screen" style={{ alignItems: "flex-start", overflowY: "auto", paddingTop: 40 }}>
       <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 640, margin: "0 auto", padding: "0 16px 60px" }}>
+
         {/* Header */}
         <div className="auth-logo" style={{ marginBottom: 28 }}>
           <div className="auth-logo-mark">⚖</div>
@@ -170,7 +201,7 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
           </div>
         </div>
 
-        {/* Progress */}
+        {/* Steps */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 36 }}>
           {[2, 3, 4].map(s => (
             <React.Fragment key={s}>
@@ -186,46 +217,43 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
           ))}
         </div>
 
-        {/* Step 2 — Profile */}
+        {/* ── STEP 2: Attorney Profile ── */}
         {step === 2 && (
           <div className="auth-box" style={{ width: "100%", maxWidth: "100%" }}>
             <div className="auth-title" style={{ fontSize: 20 }}>Attorney Profile</div>
-            <div className="auth-sub">Your professional details for MarkShield. Required fields are marked with *.</div>
+            <div className="auth-sub">Your professional details for MarkShield. Required fields marked *.</div>
             {error && <div className="auth-error">{error}</div>}
-
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-              <div><label style={labelStyle}>Full Name *</label><input style={inputStyle} placeholder="Advocate Priya Sharma" value={profile.fullName} onChange={e => fp("fullName", e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} /></div>
-              <div><label style={labelStyle}>Firm / Practice Name</label><input style={inputStyle} placeholder="e.g. Sharma & Associates" value={profile.firmName} onChange={e => fp("firmName", e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} /></div>
+              <div><label style={lbl}>Full Name *</label><input style={inp} placeholder="Advocate Manthan Desai" value={profile.fullName} onChange={e => fp("fullName", e.target.value)} onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} /></div>
+              <div><label style={lbl}>Firm / Practice Name</label><input style={inp} placeholder="e.g. Desai & Associates" value={profile.firmName} onChange={e => fp("firmName", e.target.value)} onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} /></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-              <div><label style={labelStyle}>Email *</label><input style={inputStyle} type="email" placeholder="advocate@firm.com" value={profile.email} onChange={e => fp("email", e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} /></div>
-              <div><label style={labelStyle}>Mobile *</label><input style={inputStyle} placeholder="+91 98000 00000" value={profile.mobile} onChange={e => fp("mobile", e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} /></div>
+              <div><label style={lbl}>Email *</label><input style={inp} type="email" placeholder="advocate@firm.com" value={profile.email} onChange={e => fp("email", e.target.value)} onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} /></div>
+              <div><label style={lbl}>Mobile *</label><input style={inp} placeholder="+91 98000 00000" value={profile.mobile} onChange={e => fp("mobile", e.target.value)} onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} /></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-              <div><label style={labelStyle}>City *</label><input style={inputStyle} placeholder="e.g. Surat" value={profile.city} onChange={e => fp("city", e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} /></div>
-              <div><label style={labelStyle}>State *</label>
-                <select style={{ ...inputStyle, cursor: "pointer" }} value={profile.state} onChange={e => fp("state", e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"}>
+              <div><label style={lbl}>City *</label><input style={inp} placeholder="e.g. Surat" value={profile.city} onChange={e => fp("city", e.target.value)} onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} /></div>
+              <div><label style={lbl}>State *</label>
+                <select style={{ ...inp, cursor: "pointer" }} value={profile.state} onChange={e => fp("state", e.target.value)} onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"}>
                   <option value="">Select State</option>
-                  {["Gujarat", "Maharashtra", "Delhi", "Karnataka", "Tamil Nadu", "Rajasthan", "Uttar Pradesh", "West Bengal", "Telangana", "Punjab", "Haryana", "Kerala", "Madhya Pradesh", "Odisha", "Andhra Pradesh"].map(s => <option key={s}>{s}</option>)}
+                  {["Gujarat","Maharashtra","Delhi","Karnataka","Tamil Nadu","Rajasthan","Uttar Pradesh","West Bengal","Telangana","Punjab","Haryana","Kerala","Madhya Pradesh","Odisha","Andhra Pradesh"].map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>TMA / Bar Council Registration No.</label>
-              <input style={inputStyle} placeholder="e.g. TMA/GJ/2847 or Bar Council no." value={profile.barNo} onChange={e => fp("barNo", e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} />
+              <label style={lbl}>TMA / Bar Council Registration No.</label>
+              <input style={inp} placeholder="e.g. TMA/GJ/2847" value={profile.barNo} onChange={e => fp("barNo", e.target.value)} onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Years of Practice</label>
-              <select style={{ ...inputStyle, cursor: "pointer" }} value={profile.years} onChange={e => fp("years", e.target.value)}>
+              <label style={lbl}>Years of Practice</label>
+              <select style={{ ...inp, cursor: "pointer" }} value={profile.years} onChange={e => fp("years", e.target.value)}>
                 <option value="">Select</option>
-                {["0-2", "3-5", "5-10", "10-20", "20+"].map(y => <option key={y} value={y}>{y} years</option>)}
+                {["0-2","3-5","5-10","10-20","20+"].map(y => <option key={y} value={y}>{y} years</option>)}
               </select>
             </div>
-
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={onSkip} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque', sans-serif", transition: "border-color .2s" }}
-                onMouseOver={e => e.currentTarget.style.borderColor = "#c9920a"}
-                onMouseOut={e => e.currentTarget.style.borderColor = "#1a2545"}>
+              <button onClick={onSkip} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque',sans-serif", transition: "border-color .2s" }}
+                onMouseOver={e => e.currentTarget.style.borderColor="#c9920a"} onMouseOut={e => e.currentTarget.style.borderColor="#1a2545"}>
                 Skip Setup →
               </button>
               <button className="auth-btn" onClick={goToStep3} style={{ flex: 2 }}>Continue →</button>
@@ -233,12 +261,13 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
           </div>
         )}
 
-        {/* Step 3 — TMA Sync */}
+        {/* ── STEP 3: eFiling Login with CAPTCHA ── */}
         {step === 3 && (
           <div className="auth-box" style={{ width: "100%", maxWidth: "100%" }}>
             <div className="auth-title" style={{ fontSize: 20 }}>Connect IP India eFiling</div>
-            <div className="auth-sub">Enter your IP India eFiling portal credentials to auto-import your trademark portfolio. This is optional — you can add trademarks manually later.</div>
-            {error && <div className="auth-error">{error}</div>}
+            <div className="auth-sub">Enter your IP India eFiling credentials. This is optional — you can skip and add trademarks manually.</div>
+
+            {error && <div className="auth-error">⚠ {error}</div>}
             {wakeMsg && !error && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(201,146,10,.08)", border: "1px solid rgba(201,146,10,.22)", borderRadius: 9, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: "#f0c842" }}>
                 <div style={{ width: 14, height: 14, border: "2px solid #f0c842", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .8s linear infinite", flexShrink: 0 }} />
@@ -247,25 +276,79 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
             )}
 
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>eFiling Username / TMA Code</label>
-              <input style={inputStyle} placeholder="e.g. TMA/GJ/2847 or your eFiling login" value={tmaCode} onChange={e => setTmaCode(e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} />
+              <label style={lbl}>eFiling Username / TMA Code</label>
+              <input style={inp} placeholder="e.g. manthan15" value={tmaCode} onChange={e => setTmaCode(e.target.value)}
+                onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} />
             </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={lbl}>eFiling Password</label>
+              <input style={inp} type="password" placeholder="••••••••" value={tmaPass} onChange={e => setTmaPass(e.target.value)}
+                onFocus={e => e.target.style.borderColor="#c9920a"} onBlur={e => e.target.style.borderColor="#1a2545"} />
+            </div>
+
+            {/* CAPTCHA block */}
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>eFiling Password</label>
-              <input style={inputStyle} type="password" placeholder="••••••••" value={tmaPass} onChange={e => setTmaPass(e.target.value)} onFocus={e => e.target.style.borderColor = "#c9920a"} onBlur={e => e.target.style.borderColor = "#1a2545"} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <label style={{ ...lbl, marginBottom: 0 }}>CAPTCHA — Enter code from image *</label>
+                <button onClick={loadCaptcha} disabled={captchaLoading} style={{
+                  background: "none", border: "1px solid #1a2545", borderRadius: 7, padding: "4px 11px",
+                  color: "#f0c842", fontSize: 11.5, cursor: "pointer", fontFamily: "'Bricolage Grotesque',sans-serif",
+                  display: "flex", alignItems: "center", gap: 5, transition: "border-color .2s"
+                }} onMouseOver={e => e.currentTarget.style.borderColor="#c9920a"} onMouseOut={e => e.currentTarget.style.borderColor="#1a2545"}>
+                  {captchaLoading
+                    ? <><div style={{ width: 11, height: 11, border: "2px solid #f0c842", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> Loading…</>
+                    : "🔁 Refresh"}
+                </button>
+              </div>
+
+              {/* Captcha image box */}
+              <div style={{ background: "#010508", border: "1px solid #1a2545", borderRadius: 9, padding: 14, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 72 }}>
+                {captchaLoading ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#3d4f78", fontSize: 12 }}>
+                    <div style={{ width: 20, height: 20, border: "2px solid #f0c842", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+                    Loading CAPTCHA from IP India…
+                  </div>
+                ) : captchaImg ? (
+                  <img src={`data:image/png;base64,${captchaImg}`} alt="CAPTCHA"
+                    style={{ maxHeight: 60, borderRadius: 6, filter: "contrast(1.2) brightness(1.1)", imageRendering: "pixelated" }} />
+                ) : (
+                  <div style={{ color: "#3d4f78", fontSize: 12, textAlign: "center" }}>
+                    Click <span style={{ color: "#f0c842" }}>🔁 Refresh</span> to load CAPTCHA
+                  </div>
+                )}
+              </div>
+
+              {autoSolved && (
+                <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(0,196,160,.08)", border: "1px solid rgba(0,196,160,.22)", borderRadius: 8, padding: "7px 12px", marginBottom: 8, fontSize: 12 }}>
+                  <span style={{ fontSize: 15 }}>🤖</span>
+                  <span style={{ color: "#00c4a0" }}>Auto-solved by AI (<b>{solveMethod}</b>) — verify below or click Connect</span>
+                </div>
+              )}
+              <input style={{ ...inp, letterSpacing: "0.2em", fontWeight: 700, fontSize: 15, textTransform: "uppercase",
+                borderColor: autoSolved ? "rgba(0,196,160,.5)" : "#1a2545" }}
+                placeholder="e.g. 26HD4"
+                value={captchaInput}
+                onChange={e => { setCaptchaInput(e.target.value.toUpperCase()); setAutoSolved(false) }}
+                onFocus={e => e.target.style.borderColor="#c9920a"}
+                onBlur={e => e.target.style.borderColor= autoSolved ? "rgba(0,196,160,.5)" : "#1a2545"}
+                onKeyDown={e => { if (e.key === "Enter") doFetchTMA() }} />
+              <div style={{ fontSize: 11, color: "#3d4f78", marginTop: 5 }}>
+                {autoSolved
+                  ? "✅ AI filled this automatically. If login fails, get a new CAPTCHA."
+                  : "ℹ Capital letters + numbers only (e.g. 26HD4). Case-sensitive."}
+              </div>
             </div>
 
             {/* Log terminal */}
-            <div style={{ background: "#010508", border: "1px solid #1a2545", borderRadius: 9, padding: "12px 14px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, lineHeight: 1.9, height: 150, overflowY: "auto", marginBottom: 12 }}>
+            <div style={{ background: "#010508", border: "1px solid #1a2545", borderRadius: 9, padding: "12px 14px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, lineHeight: 1.9, height: 140, overflowY: "auto", marginBottom: 10 }}>
               {fetchLog.length === 0
-                ? <div style={{ color: "#1e2d50" }}>Enter credentials and click Connect to sync your portfolio…</div>
+                ? <div style={{ color: "#1e2d50" }}>Enter credentials, solve CAPTCHA, and click Connect…</div>
                 : fetchLog.map((l, i) => (
                   <div key={i} style={{ display: "flex", gap: 12 }}>
                     <span style={{ color: "#1e2d50", flexShrink: 0 }}>{l.ts}</span>
                     <span style={{ color: clsMap[l.t] || "#5b9ef8" }}>{l.m}</span>
                   </div>
-                ))
-              }
+                ))}
             </div>
             <div style={{ background: "#1a2545", borderRadius: 3, height: 4, overflow: "hidden", marginBottom: 20 }}>
               <div style={{ height: "100%", background: "linear-gradient(90deg,#c9920a,#f0c842)", borderRadius: 3, width: fetchProgress + "%", transition: "width .4s ease" }} />
@@ -275,16 +358,18 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
               <div style={{ background: "rgba(0,196,160,.08)", border: "1px solid rgba(0,196,160,.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 20, display: "flex", gap: 12, alignItems: "center" }}>
                 <div style={{ fontSize: 20 }}>✅</div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--teal)" }}>Connected: {tmaData.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#00c4a0" }}>Connected: {tmaData.name}</div>
                   <div style={{ fontSize: 12, color: "#3d4f78" }}>{tmaData.tmaCode} · {tmaData.city}, {tmaData.state}</div>
                 </div>
               </div>
             )}
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStep(2)} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque', sans-serif" }}>← Back</button>
-              <button className="auth-btn" style={{ flex: 1 }} onClick={doFetchTMA} disabled={fetching}>
-                {fetching ? <div style={{ width: 18, height: 18, border: "2.5px solid rgba(255,255,255,.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto" }} /> : "🔗 Connect eFiling"}
+              <button onClick={() => setStep(2)} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque',sans-serif" }}>← Back</button>
+              <button className="auth-btn" style={{ flex: 1.5 }} onClick={doFetchTMA} disabled={fetching || !captchaImg}>
+                {fetching
+                  ? <div style={{ width: 18, height: 18, border: "2.5px solid rgba(255,255,255,.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto" }} />
+                  : "🔗 Connect eFiling"}
               </button>
               <button className="auth-btn" style={{ flex: 1 }} onClick={() => setStep(4)}>
                 {tmaData ? "Next →" : "Skip →"}
@@ -293,19 +378,17 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
           </div>
         )}
 
-        {/* Step 4 — Preferences */}
+        {/* ── STEP 4: Preferences ── */}
         {step === 4 && (
           <div className="auth-box" style={{ width: "100%", maxWidth: "100%" }}>
             <div className="auth-title" style={{ fontSize: 20 }}>Preferences</div>
             <div className="auth-sub">Configure your notification and reminder settings.</div>
-
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Hearing reminder lead time</label>
-              <select style={{ ...inputStyle, cursor: "pointer" }} value={notifLeadTime} onChange={e => setNotifLeadTime(e.target.value)}>
-                {["1", "2", "3", "5", "7", "14"].map(d => <option key={d} value={d}>{d} day{d !== "1" ? "s" : ""} before</option>)}
+              <label style={lbl}>Hearing reminder lead time</label>
+              <select style={{ ...inp, cursor: "pointer" }} value={notifLeadTime} onChange={e => setNotifLeadTime(e.target.value)}>
+                {["1","2","3","5","7","14"].map(d => <option key={d} value={d}>{d} day{d !== "1" ? "s" : ""} before</option>)}
               </select>
             </div>
-
             <div style={{ padding: "14px 16px", background: "rgba(0,196,160,.07)", border: "1px solid rgba(0,196,160,.15)", borderRadius: 10, marginBottom: 20 }}>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>✅ Setup Summary</div>
               <div style={{ fontSize: 12, color: "#8898bf", lineHeight: 1.8 }}>
@@ -316,9 +399,8 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
                 Hearing Reminder: {notifLeadTime} day{notifLeadTime !== "1" ? "s" : ""} before
               </div>
             </div>
-
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStep(3)} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque', sans-serif" }}>← Back</button>
+              <button onClick={() => setStep(3)} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque',sans-serif" }}>← Back</button>
               <button className="auth-btn" onClick={handleComplete} style={{ flex: 2 }}>Enter MarkShield →</button>
             </div>
           </div>
