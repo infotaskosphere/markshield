@@ -136,8 +136,8 @@ function ProfileModal({ context, onClose }) {
                 ℹ To reconnect or change eFiling credentials, sign out and sign back in — the setup wizard will run again with your new credentials.
               </div>
 
-              <button onClick={() => { if (window.confirm("Sign out to re-run the eFiling setup wizard?")) context?.onLogout?.() }}
-                style={{ background: "rgba(201,146,10,.12)", border: "1px solid rgba(201,146,10,.25)", borderRadius: 9, padding: "11px", color: "#f0c842", fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => { onClose(); context?.onRerunSetup?.() }}
+                style={{ background: "rgba(201,146,10,.12)", border: "1px solid rgba(201,146,10,.25)", borderRadius: 9, padding: "11px", color: "#f0c842", fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer", width: "100%" }}>
                 🔁 Re-run eFiling Setup
               </button>
             </div>
@@ -197,7 +197,12 @@ export default function Sidebar({ context, mobileOpen, onClose }) {
       <aside className={`sidebar${mobileOpen ? " sidebar-mobile-open" : ""}`}>
         <div className="logo-area">
           <button onClick={onClose} className="sidebar-close-btn">✕</button>
-          <div className="logo-mark">⚖</div>
+          <div className="logo-mark" style={{ overflow: "hidden", padding: 0 }}>
+            <img src="/logo.png" alt="MarkShield"
+              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 9 }}
+              onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex" }} />
+            <span style={{ display: "none", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", fontSize: 17 }}>⚖</span>
+          </div>
           <div>
             <div className="logo-name">Mark<em>Shield</em></div>
             <div className="logo-tag">AI Trademark Platform</div>
