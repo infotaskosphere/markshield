@@ -22,7 +22,9 @@ const NAV = [
   { section: "Team" },
   { to: "/team",   icon: "👥", label: "Team Members" },
   { section: "Data" },
-  { to: "/import", icon: "📥", label: "Bulk Import",  badge: "DB", badgeCls: "blue" },
+  { to: "/import",   icon: "📥", label: "Bulk Import",  badge: "DB", badgeCls: "blue" },
+  { section: "Settings" },
+  { to: "/settings", icon: "⚙️",  label: "Settings" },
 ]
 
 // ── Profile Edit Modal ────────────────────────────────────────────────────────
