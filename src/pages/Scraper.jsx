@@ -102,7 +102,10 @@ export default function Scraper({ context }) {
   const addLog = (setter, t, msg) => setter(l => [...l, { t, msg, ts: new Date().toLocaleTimeString() }])
   const fmtDate = v => { const [y, m, d] = v.split("-"); return `${d}/${m}/${y}` }
 
-  useEffect(() => { checkBackend().then(setBackendOk) }, [])
+  useEffect(() => {
+    // Pass a retry callback so Render cold-start (~30-60s) is handled gracefully
+    checkBackend(() => setBackendOk(null)).then(setBackendOk)
+  }, [])
 
   const requireBackend = (setter) => {
     if (!backendOk) {
