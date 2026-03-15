@@ -15,6 +15,7 @@ import Reports from "./pages/Reports"
 import Team from "./pages/Team"
 import Draft from "./pages/Draft"
 import Pending from "./pages/Pending"
+import Import from "./pages/Import"
 
 // ── localStorage helpers ───────────────────────────────────────────────────
 const LS = {
