@@ -1,94 +1,87 @@
-"""routes/portfolio.py — Attorney portfolio by TMA code"""
+"""routes/portfolio.py — Full attorney portfolio by TMA code"""
 
-import re
+import threading
+import uuid
 from flask import Blueprint, request, jsonify
-from datetime import datetime, timedelta
-from scrapers import fetch_cause_list
+from scrapers.attorney_portfolio import fetch_attorney_portfolio
 
 bp_portfolio = Blueprint("portfolio", __name__)
 
-# ── TMA registry (in production: call CGPDTM API) ────────
-TMA_REGISTRY = {
-    "TMA/GJ/2847": {"name": "RAJESH SHARMA",                  "city": "Surat",     "state": "Gujarat",       "office": "Ahmedabad"},
-    "TMA/GJ/1234": {"name": "H. K. ACHARYA & COMPANY",        "city": "Ahmedabad", "state": "Gujarat",       "office": "Ahmedabad"},
-    "TMA/MH/1192": {"name": "PRIYA MEHTA",                    "city": "Mumbai",    "state": "Maharashtra",   "office": "Mumbai"},
-    "TMA/MH/0891": {"name": "ANIL D. SAWANT",                 "city": "Mumbai",    "state": "Maharashtra",   "office": "Mumbai"},
-    "TMA/MH/0234": {"name": "DASWANI & DASWANI",              "city": "Mumbai",    "state": "Maharashtra",   "office": "Mumbai"},
-    "TMA/DL/4421": {"name": "AMIT KUMAR",                     "city": "New Delhi", "state": "Delhi",         "office": "Delhi"},
-    "TMA/DL/0012": {"name": "S.S. RANA & CO.",                "city": "New Delhi", "state": "Delhi",         "office": "Delhi"},
-    "TMA/DL/0088": {"name": "LALL & SETHI",                   "city": "New Delhi", "state": "Delhi",         "office": "Delhi"},
-    "TMA/DL/0234": {"name": "ANAND AND ANAND",                "city": "New Delhi", "state": "Delhi",         "office": "Delhi"},
-    "TMA/DL/0567": {"name": "AZB & PARTNERS",                 "city": "New Delhi", "state": "Delhi",         "office": "Delhi"},
-    "TMA/CH/0111": {"name": "IPR LAW ASSOCIATES (CHENNAI)",   "city": "Chennai",   "state": "Tamil Nadu",    "office": "Chennai"},
-    "TMA/CH/0222": {"name": "NADAR VENNILA",                  "city": "Chennai",   "state": "Tamil Nadu",    "office": "Chennai"},
-    "TMA/KO/0445": {"name": "ANJAN SEN & ASSOCIATES",         "city": "Kolkata",   "state": "West Bengal",   "office": "Kolkata"},
-    "TMA/GJ/0099": {"name": "LALJI ADVOCATES",                "city": "Ahmedabad", "state": "Gujarat",       "office": "Ahmedabad"},
-    "TMA/MH/0777": {"name": "NEWTON REGINALD",                "city": "Mumbai",    "state": "Maharashtra",   "office": "Mumbai"},
-    "TMA/DL/0321": {"name": "KHURANA & KHURANA",              "city": "New Delhi", "state": "Delhi",         "office": "Delhi"},
-    "TMA/GJ/0501": {"name": "INFINVENT IP",                   "city": "Ahmedabad", "state": "Gujarat",       "office": "Ahmedabad"},
-    "TMA/MH/0600": {"name": "BANANAIP COUNSELS",              "city": "Mumbai",    "state": "Maharashtra",   "office": "Mumbai"},
-}
-
-_TMA_RE = re.compile(r"^TMA/[A-Z]{2,3}/\d{3,6}$")
+# In-memory job store for async portfolio fetch
+_jobs: dict = {}
 
 
-def _validate(code: str):
-    code = code.upper().strip()
-    if not _TMA_RE.match(code):
-        return None, "Invalid TMA format — expected TMA/XX/NNNN (e.g. TMA/GJ/2847)"
-    return code, None
-
-
-@bp_portfolio.route("/portfolio/<path:tma_code>")
-def portfolio(tma_code):
+@bp_portfolio.route("/attorney-portfolio", methods=["POST"])
+def attorney_portfolio():
     """
-    GET /api/portfolio/TMA/GJ/2847
-    Returns attorney info + live upcoming hearings from IP India.
+    POST /api/attorney-portfolio
+    Body: { "tma_code": "manthan15", "agent_name": "MANTHAN DESAI" }
+
+    Starts an async portfolio fetch job.
+    Returns: { "job_id": "...", "status": "started" }
+
+    Poll GET /api/attorney-portfolio/<job_id> for status/results.
     """
-    code, err = _validate(tma_code)
-    if err:
-        return jsonify({"error": err}), 400
+    body       = request.get_json(silent=True) or {}
+    tma_code   = body.get("tma_code",   "").strip()
+    agent_name = body.get("agent_name", "").strip()
 
-    attorney = TMA_REGISTRY.get(code)
-    if not attorney:
-        # Soft fallback — still try to search by code substring
-        attorney = {"name": code, "city": "India", "state": "Unknown", "office": "All"}
+    if not tma_code:
+        return jsonify({"error": "tma_code is required"}), 400
 
-    agent_name = attorney["name"]
-    today      = datetime.now()
-    date_from  = today.strftime("%d/%m/%Y")
-    date_to    = (today + timedelta(days=60)).strftime("%d/%m/%Y")
+    job_id = str(uuid.uuid4())[:8]
+    _jobs[job_id] = {
+        "status":   "running",
+        "progress": 0,
+        "message":  "Starting…",
+        "result":   None,
+        "error":    None,
+    }
 
-    result   = fetch_cause_list(agent_filter=agent_name)
-    hearings = result.get("hearings", [])
+    def run():
+        def progress_cb(msg, pct):
+            _jobs[job_id]["message"]  = msg
+            _jobs[job_id]["progress"] = pct
 
-    objected  = sum(1 for h in hearings if h["status"] == "objected")
-    opposed   = sum(1 for h in hearings if h["status"] == "opposed")
+        try:
+            result = fetch_attorney_portfolio(
+                tma_code=tma_code,
+                agent_name=agent_name,
+                max_detail_fetch=50,
+                progress_cb=progress_cb,
+            )
+            _jobs[job_id]["result"] = result
+            _jobs[job_id]["status"] = "done"
+        except Exception as e:
+            _jobs[job_id]["error"]  = str(e)
+            _jobs[job_id]["status"] = "error"
 
-    return jsonify({
-        "tma_code": code,
-        "attorney": attorney,
-        "hearings": hearings,
-        "summary": {
-            "total_hearings":  len(hearings),
-            "objected":        objected,
-            "opposed":         opposed,
-            "scheduled":       len(hearings) - objected - opposed,
-            "next_hearing":    hearings[0] if hearings else None,
-        },
-        "date_range":  {"from": date_from, "to": date_to},
-        "fetched_at":  datetime.utcnow().isoformat() + "Z",
-        "source":      "IP India Cause List (live)",
-    })
+    threading.Thread(target=run, daemon=True).start()
+
+    return jsonify({"job_id": job_id, "status": "started"})
 
 
-@bp_portfolio.route("/portfolio/<path:tma_code>/hearings")
-def portfolio_hearings(tma_code):
-    """GET /api/portfolio/TMA/GJ/2847/hearings"""
-    code, err = _validate(tma_code)
-    if err:
-        return jsonify({"error": err}), 400
-    attorney  = TMA_REGISTRY.get(code, {})
-    agent     = attorney.get("name", code)
-    result    = fetch_cause_list(agent_filter=agent)
-    return jsonify(result)
+@bp_portfolio.route("/attorney-portfolio/<job_id>")
+def attorney_portfolio_status(job_id):
+    """
+    GET /api/attorney-portfolio/<job_id>
+    Returns current job status, progress, and result when done.
+    """
+    job = _jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    resp = {
+        "job_id":   job_id,
+        "status":   job["status"],
+        "progress": job["progress"],
+        "message":  job["message"],
+    }
+    if job["status"] == "done":
+        resp["result"] = job["result"]
+        del _jobs[job_id]   # clean up
+    elif job["status"] == "error":
+        resp["error"] = job["error"]
+        del _jobs[job_id]
+
+    return jsonify(resp)
