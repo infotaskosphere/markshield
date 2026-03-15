@@ -14,13 +14,23 @@ const LOG_SUCCESS_SUFFIX = [
   { t: "ok",   m: "✅ Sync complete — entering MarkShield dashboard" },
 ]
 
-export default function TMASetup({ currentUser, onComplete, onSkip }) {
-  const [step, setStep] = useState(2)
+export default function TMASetup({ currentUser, onComplete, onSkip, rerunMode, existingProfile, mustConnect }) {
+  // If rerunMode, jump straight to step 3 (eFiling) — profile already filled
+  const [step, setStep] = useState(rerunMode ? 3 : 2)
   const [error, setError] = useState("")
   const [profile, setProfile] = useState({
-    fullName: currentUser?.name || "",
-    firmName: "", email: currentUser?.email || "", mobile: "", phone: "", barNo: "",
-    address: "", city: "", state: "", pin: "", portalUser: "", years: "",
+    fullName: existingProfile?.fullName || currentUser?.name || "",
+    firmName: existingProfile?.firmName || "",
+    email:    existingProfile?.email    || currentUser?.email || "",
+    mobile:   existingProfile?.mobile   || "",
+    phone:    existingProfile?.phone    || "",
+    barNo:    existingProfile?.barNo    || "",
+    address:  existingProfile?.address  || "",
+    city:     existingProfile?.city     || "",
+    state:    existingProfile?.state    || "",
+    pin:      existingProfile?.pin      || "",
+    portalUser: existingProfile?.portalUser || "",
+    years:    existingProfile?.years    || "",
   })
   const [tmaCode,       setTmaCode]       = useState("")
   const [tmaPass,       setTmaPass]       = useState("")
@@ -258,10 +268,16 @@ export default function TMASetup({ currentUser, onComplete, onSkip }) {
               </select>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={onSkip} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque',sans-serif", transition: "border-color .2s" }}
-                onMouseOver={e => e.currentTarget.style.borderColor="#c9920a"} onMouseOut={e => e.currentTarget.style.borderColor="#1a2545"}>
-                Skip Setup →
-              </button>
+              {onSkip ? (
+                <button onClick={onSkip} style={{ flex: 1, background: "none", border: "1.5px solid #1a2545", borderRadius: 10, padding: 13, color: "#3d4f78", cursor: "pointer", fontSize: 14, fontFamily: "'Bricolage Grotesque',sans-serif", transition: "border-color .2s" }}
+                  onMouseOver={e => e.currentTarget.style.borderColor="#c9920a"} onMouseOut={e => e.currentTarget.style.borderColor="#1a2545"}>
+                  Skip Setup →
+                </button>
+              ) : (
+                <div style={{ flex: 1, fontSize: 11, color: "#3d4f78", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>⚖️</span> IP Attorneys must complete setup to access MarkShield.
+                </div>
+              )}
               <button className="auth-btn" onClick={goToStep3} style={{ flex: 2 }}>Continue →</button>
             </div>
           </div>
@@ -379,9 +395,16 @@ export default function TMASetup({ currentUser, onComplete, onSkip }) {
                   ? <div style={{ width: 18, height: 18, border: "2.5px solid rgba(255,255,255,.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto" }} />
                   : "🔗 Connect eFiling"}
               </button>
-              <button className="auth-btn" style={{ flex: 1 }} onClick={() => setStep(4)}>
-                {tmaData ? "Next →" : "Skip →"}
-              </button>
+              {tmaData ? (
+                <button className="auth-btn" style={{ flex: 1 }} onClick={() => setStep(4)}>Next →</button>
+              ) : mustConnect ? (
+                <div style={{ flex: 1, background: "rgba(244,63,94,.08)", border: "1px solid rgba(244,63,94,.2)", borderRadius: 10, padding: "10px 12px", fontSize: 11.5, color: "#f43f5e", display: "flex", alignItems: "center", gap: 7, lineHeight: 1.4 }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
+                  <span>IP Attorneys must connect to continue. Connect above or contact admin.</span>
+                </div>
+              ) : (
+                <button className="auth-btn" style={{ flex: 1, background: "rgba(61,79,120,.3)" }} onClick={() => setStep(4)}>Skip →</button>
+              )}
             </div>
           </div>
         )}
