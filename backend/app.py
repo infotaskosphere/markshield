@@ -13,7 +13,8 @@ from routes import (
     bp_search,
     bp_efiling,
     bp_portfolio,
-    bp_queue,      # ← was missing — queue list was never registered!
+    bp_queue,
+    bp_ai,
 )
 
 logging.basicConfig(
@@ -42,7 +43,7 @@ def create_app():
             return Response(status=200)
 
     # ── Register all blueprints ───────────────────────────────────────────────
-    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_queue]:
+    for bp in [bp_cause, bp_app, bp_agent, bp_search, bp_efiling, bp_portfolio, bp_queue, bp_ai]:
         app.register_blueprint(bp, url_prefix="/api")
 
     # ── Health check ──────────────────────────────────────────────────────────
