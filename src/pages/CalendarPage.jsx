@@ -17,7 +17,7 @@ export default function CalendarPage({ context }) {
   const [form,    setForm]    = useState({ title: "", type: "hearing", app: "" })
 
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(events)) } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(events)) } catch(_e) {}
   }, [events])
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
