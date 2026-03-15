@@ -1,4 +1,4 @@
-"""routes/search.py — Public trademark search via BinBash API"""
+"""routes/search.py — Trademark search from local DB + live IP India"""
 from flask import Blueprint, request, jsonify
 
 bp_search = Blueprint("search", __name__)
@@ -6,36 +6,45 @@ bp_search = Blueprint("search", __name__)
 
 @bp_search.route("/public-search")
 def public_search():
-    q          = request.args.get("q", "").strip()
-    tm_class   = request.args.get("class", "")
-    status     = request.args.get("status", "")
-    match_type = request.args.get("match_type", "SMART")
-    limit      = min(int(request.args.get("limit", 50)), 100)
+    q        = request.args.get("q", "").strip()
+    tm_class = request.args.get("class", "")
+    status   = request.args.get("status", "")
+    limit    = min(int(request.args.get("limit", 50)), 100)
+    offset   = int(request.args.get("offset", 0))
 
-    if not q:
-        return jsonify({"error": "q (search query) is required"}), 400
+    if not q: return jsonify({"error": "q is required"}), 400
 
+    # Search local DB first
     try:
-        from scrapers.binbash_api import public_search as bb_search
-        result = bb_search(word_mark=q, class_number=tm_class,
-                           status=status, match_type=match_type, limit=limit)
-        return jsonify(result)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 503
+        from database import search_trademarks
+        result = search_trademarks(
+            word_mark=q, tm_class=tm_class, status=status,
+            limit=limit, offset=offset,
+        )
+        if result["total"] > 0:
+            result["source"] = "local_db"
+            return jsonify(result)
+    except Exception: pass
+
+    # Live IP India public search fallback
+    try:
+        from scrapers.ipindia import fetch_public_search
+        data = fetch_public_search(query=q, tm_class=tm_class)
+        return jsonify({
+            "results":  data.get("results", []),
+            "total":    data.get("total", 0),
+            "query":    q,
+            "source":   "ipindia_live",
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
 
-@bp_search.route("/proprietor-search")
-def proprietor_search():
-    name = request.args.get("name", "").strip()
-    if not name:
-        return jsonify({"error": "name is required"}), 400
+@bp_search.route("/db-stats")
+def db_stats():
+    """GET /api/db-stats — show local database statistics"""
     try:
-        from scrapers.binbash_api import get_proprietor_trademarks
-        result = get_proprietor_trademarks(name)
-        return jsonify(result)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 503
+        from database import get_db_stats
+        return jsonify(get_db_stats())
     except Exception as e:
         return jsonify({"error": str(e)}), 502
