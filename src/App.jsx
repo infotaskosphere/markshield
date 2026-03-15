@@ -72,19 +72,39 @@ export default function App() {
     }
   }, [authStage, currentUser, tmaData, agentProfile])
 
+  // ── Role helpers ──────────────────────────────────────────────────────────
+  // Attorneys (IP Attorney role or admin) MUST connect to IP India portal.
+  // Team members (Paralegal, Clerk, Intern) skip setup permanently.
+  const requiresEFiling = (user) =>
+    user?.isAdmin || user?.role === "IP Attorney"
+
   // ── Auth handlers ─────────────────────────────────────────────────────────
   const handleLoginSuccess = (user) => {
     setCurrentUser(user)
-    // Check per-user profiles store (survives logout)
     const profiles = LS.get(KEYS.profiles, {})
     const userProfile = profiles[user.username]
-    if (userProfile) {
-      // User has completed setup before — restore their data and go straight to app
+
+    if (!requiresEFiling(user)) {
+      // Team member (Paralegal / Clerk / Intern) — skip setup entirely, always
+      setAgentProfile(userProfile?.agentProfile || {})
+      setTmaData(userProfile?.tmaData || null)
+      setAuthStage("app")
+      return
+    }
+
+    // IP Attorney / Admin — must have eFiling connected
+    const isEFilingConnected = !!(userProfile?.tmaData?.connectedAt)
+
+    if (isEFilingConnected) {
+      // Already connected — restore and go straight to app
       setAgentProfile(userProfile.agentProfile || {})
       setTmaData(userProfile.tmaData || null)
       setAuthStage("app")
     } else {
-      // First time for this user — run setup
+      // Not connected (new user OR skipped before) — always show setup
+      // Restore any existing profile data so they don't re-type everything
+      setAgentProfile(userProfile?.agentProfile || {})
+      setTmaData(null)
       setAuthStage("setup")
     }
   }
@@ -120,6 +140,13 @@ export default function App() {
     LS.set(KEYS.profiles, profiles)
   }
 
+  const handleRerunSetup = () => {
+    // Go back to setup wizard (step 3 eFiling) WITHOUT logging out
+    // Clears tmaData so setup knows to re-connect, keeps everything else
+    setTmaData(null)
+    setAuthStage("setup")
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (authStage === "login") {
     return <Login onSuccess={handleLoginSuccess} />
@@ -130,7 +157,10 @@ export default function App() {
       <TMASetup
         currentUser={currentUser}
         onComplete={handleSetupComplete}
-        onSkip={handleSkipToApp}
+        onSkip={requiresEFiling(currentUser) ? null : handleSkipToApp}
+        rerunMode={!!(agentProfile?.fullName)}
+        existingProfile={agentProfile}
+        mustConnect={requiresEFiling(currentUser)}
       />
     )
   }
@@ -143,6 +173,7 @@ export default function App() {
     efilingConnected: !!(agentProfile?.efilingUser && tmaData?.connectedAt),
     onLogout:         handleLogout,
     onProfileUpdate:  handleProfileUpdate,
+    onRerunSetup:     handleRerunSetup,
   }
 
   return (
