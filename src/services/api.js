@@ -145,6 +145,19 @@ export function verifyTMA(tmaCode) {
   }, 30000)
 }
 
+
+// ── Attorney Portfolio ────────────────────────────────────────────────────────
+export function startPortfolioFetch(tmaCode, agentName, force) {
+  return apiFetch("/attorney-portfolio", {
+    method: "POST",
+    body: JSON.stringify({ tma_code: tmaCode, agent_name: agentName || "", force: force || false })
+  }, 15000)
+}
+
+export function pollPortfolioJob(jobId) {
+  return apiFetch("/attorney-portfolio/" + jobId, {}, 15000)
+}
+
 // ── AI Chat ───────────────────────────────────────────────────────────────────
 // Routes through backend to avoid CORS — never calls Anthropic directly from browser
 
