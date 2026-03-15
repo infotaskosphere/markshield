@@ -17,7 +17,7 @@ export default function Team({ context }) {
   const agentFirm = context?.agentProfile?.firmName || agentName
 
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(team)) } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(team)) } catch(_e) {}
   }, [team])
 
   const openAdd  = () => { setForm({ name: "", role: "attorney", email: "", mobile: "", barNo: "", access: "full" }); setAddOpen(true) }
