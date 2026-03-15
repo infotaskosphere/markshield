@@ -1,37 +1,23 @@
-# scrapers/__init__.py — MarkShield Scraper Package
-# Core imports (always available — these work without any API key)
-from .ipindia import (
-    fetch_cause_list,
-    fetch_public_search,
-    fetch_tla_queue,
-    get_efiling,
-)
+# scrapers/__init__.py  ─  all imports from our own IP India scraper
+from .ipindia import fetch_cause_list, fetch_public_search, fetch_tla_queue, get_efiling
 
-# Application fetch — uses eregister (Playwright + requests fallback)
 try:
-    from .eregister import fetch_application, fetch_applications_bulk
-except ImportError:
-    # fallback to ipindia if eregister not present
-    from .ipindia import fetch_application, fetch_applications_bulk  # type: ignore
-
-# Bulk portfolio sync — uses ipindia_bulk
-try:
-    from .ipindia_bulk import (
-        sync_attorney_portfolio,
-        fetch_eregister_single,
+    from .ipindia_scraper import (
+        fetch_application,
+        fetch_applications_bulk,
+        sync_full_portfolio      as sync_attorney_portfolio,
         fetch_tla_queue_full,
-        fetch_causelist_full,
+        fetch_causelist,
+        fetch_causelist          as fetch_causelist_full,
+        _apex_search,
     )
-except ImportError:
-    pass
+    fetch_eregister_single = fetch_application
+except ImportError as e:
+    import logging
+    logging.getLogger("markshield").warning(f"ipindia_scraper import failed: {e}")
 
 __all__ = [
-    "fetch_cause_list",
-    "fetch_application",
-    "fetch_applications_bulk",
-    "fetch_public_search",
-    "fetch_tla_queue",
-    "get_efiling",
-    "sync_attorney_portfolio",
-    "fetch_eregister_single",
+    "fetch_cause_list", "fetch_application", "fetch_applications_bulk",
+    "fetch_public_search", "fetch_tla_queue", "get_efiling",
+    "sync_attorney_portfolio", "fetch_eregister_single",
 ]
