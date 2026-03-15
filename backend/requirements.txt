@@ -8,29 +8,12 @@ beautifulsoup4>=4.12.0
 lxml>=5.0.0
 urllib3>=2.0.0
 
-# ── Browser automation (for CAPTCHA-heavy pages) ──────────────────────────────
+# ── Browser automation ────────────────────────────────────────────────────────
+# playwright install chromium --with-deps  (run in build command)
 playwright>=1.42.0
 
-# ── CAPTCHA solving ───────────────────────────────────────────────────────────
-# Pillow: image preprocessing (always used)
+# ── Image processing ──────────────────────────────────────────────────────────
 Pillow>=10.0.0
 
-# pytesseract: free OCR (~65% accuracy on IP India CAPTCHAs)
-# ALSO requires system package: apt-get install -y tesseract-ocr
-# Add this to your Render build command:
-#   apt-get install -y tesseract-ocr && pip install -r requirements.txt
-pytesseract>=0.3.10
-
-# ddddocr: ML-based CAPTCHA solver — best free option (~90% accuracy)
-# Specifically trained on simple alphanumeric CAPTCHAs like IP India's
-# Uncomment when you deploy to Render (it's a larger package ~50MB):
-ddddocr>=1.4.11
-
-# ── Optional: paid CAPTCHA services (near-100% accuracy) ─────────────────────
-# If you set CAPTCHA_SERVICE=2captcha or CAPTCHA_SERVICE=anticaptcha in .env,
-# the solver will use these APIs automatically.
-# Cost: ~$1 per 1000 CAPTCHAs — very affordable for a law firm.
-# twocaptcha>=2.0.1   # uncomment + add CAPTCHA_API_KEY in .env
-
-# Scheduler
+# ── Scheduler ────────────────────────────────────────────────────────────────
 apscheduler>=3.10.0
