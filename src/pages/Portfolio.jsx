@@ -21,7 +21,7 @@ export default function Portfolio({ context }) {
 
   // ── Save to localStorage whenever trademarks change ───────────────────────
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(trademarks)) } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(trademarks)) } catch(_e) {}
   }, [trademarks])
 
   // ── If eFiling portfolio was imported during setup, merge it ──────────────
