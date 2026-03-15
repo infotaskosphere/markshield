@@ -71,44 +71,43 @@ def _get_all_tma_codes() -> list:
 
 # ── Job 1: Nightly Portfolio Sync ─────────────────────────────────────────────
 def job_sync_portfolio():
-    """Fetch full portfolio for all registered attorneys."""
+    """Fetch full portfolio for all registered attorneys into local DB."""
     log.info("=== NIGHTLY PORTFOLIO SYNC STARTED ===")
 
     try:
-        from scrapers.playwright_scraper import fetch_portfolio_by_agent
-    except ImportError:
-        log.error("playwright_scraper not found")
+        from scrapers.ipindia_bulk import sync_attorney_portfolio
+        from database import get_all_attorneys
+    except ImportError as e:
+        log.error(f"Import error: {e}")
         return
 
-    tma_codes = _get_all_tma_codes()
-    if not tma_codes:
-        log.info("No TMA codes to sync")
+    attorneys = get_all_attorneys()
+    if not attorneys:
+        # Fallback to env var
+        env_codes = os.getenv("SYNC_TMA_CODES", "")
+        if env_codes:
+            attorneys = [{"tma_code": c.strip(), "agent_name": ""} for c in env_codes.split(",") if c.strip()]
+
+    if not attorneys:
+        log.info("No attorneys registered for sync")
         return
 
-    log.info(f"Syncing {len(tma_codes)} attorney(s): {tma_codes}")
+    log.info(f"Syncing {len(attorneys)} attorney(s)")
 
-    for tma_code in tma_codes:
+    for atty in attorneys:
+        tma_code   = atty["tma_code"]
+        agent_name = atty.get("agent_name", "")
         try:
-            log.info(f"Syncing portfolio for: {tma_code}")
-            existing = _load(f"portfolio_{tma_code}")
-            agent_name = existing.get("agent_name", "")
-
+            log.info(f"Syncing: {tma_code} ({agent_name})")
             def progress(msg, pct):
                 log.info(f"  [{tma_code}] {pct}% — {msg}")
-
-            result = fetch_portfolio_by_agent(
-                tma_code=tma_code,
-                agent_name=agent_name,
-                progress_cb=progress,
+            result = sync_attorney_portfolio(
+                tma_code=tma_code, agent_name=agent_name, progress_cb=progress
             )
-            result["synced_at"] = _now()
-            _save(f"portfolio_{tma_code}", result)
-
             apps = len(result.get("applications", []))
-            log.info(f"✅ {tma_code}: {apps} applications synced")
-
+            log.info(f"✅ {tma_code}: {apps} applications in DB")
         except Exception as e:
-            log.error(f"❌ Portfolio sync failed for {tma_code}: {e}")
+            log.error(f"❌ Sync failed for {tma_code}: {e}")
 
 
 # ── Job 2: Cause List Refresh ─────────────────────────────────────────────────
@@ -262,32 +261,26 @@ def get_cached_causelist(tma_code: str) -> dict:
 
 
 def register_tma_for_sync(tma_code: str, agent_name: str = ""):
-    """Called when a new attorney connects — registers them for nightly sync."""
-    existing = _load(f"portfolio_{tma_code}")
-    if not existing:
-        _save(f"portfolio_{tma_code}", {
-            "tma_code":   tma_code,
-            "agent_name": agent_name,
-            "applications": [],
-            "summary":    {},
-            "registered_at": _now(),
-            "synced_at":  None,
-        })
+    """Called when a new attorney connects — registers them and starts initial sync."""
+    try:
+        from database import register_attorney, get_attorney_portfolio
+        register_attorney(tma_code, agent_name)
         log.info(f"Registered {tma_code} for nightly sync")
 
-        # Trigger an immediate sync in background thread
-        import threading
-        def initial_sync():
-            try:
-                from scrapers.playwright_scraper import fetch_portfolio_by_agent
-                result = fetch_portfolio_by_agent(tma_code=tma_code, agent_name=agent_name)
-                result["synced_at"] = _now()
-                _save(f"portfolio_{tma_code}", result)
-                log.info(f"Initial sync complete for {tma_code}: {len(result.get('applications',[]))} apps")
-            except Exception as e:
-                log.error(f"Initial sync failed for {tma_code}: {e}")
-
-        threading.Thread(target=initial_sync, daemon=True).start()
+        # Trigger immediate background sync only if DB is empty for this attorney
+        existing = get_attorney_portfolio(tma_code=tma_code, agent_name=agent_name)
+        if not existing:
+            import threading
+            def initial_sync():
+                try:
+                    from scrapers.ipindia_bulk import sync_attorney_portfolio
+                    result = sync_attorney_portfolio(tma_code=tma_code, agent_name=agent_name)
+                    log.info(f"Initial sync done for {tma_code}: {len(result.get('applications',[]))} apps")
+                except Exception as e:
+                    log.error(f"Initial sync failed for {tma_code}: {e}")
+            threading.Thread(target=initial_sync, daemon=True).start()
+    except Exception as e:
+        log.error(f"register_tma_for_sync error: {e}")
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
