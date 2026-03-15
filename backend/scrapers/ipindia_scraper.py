@@ -354,6 +354,21 @@ LABEL_MAP = {
 
 
 def fetch_application(app_no: str, session=None) -> Dict:
+    # Try eStatus saved session first (most complete data)
+    try:
+        from scrapers.estatus_auth import fetch_with_session, has_session
+        if has_session():
+            data = fetch_with_session(app_no)
+            if data.get("trademark_name") or data.get("status"):
+                log.info(f"eStatus session hit: {app_no}")
+                return {"app_no": app_no, **data,
+                        "view_url": f"{EREGISTER_VIEW.format(app_no=app_no)}"}
+    except Exception as e:
+        log.debug(f"eStatus session failed: {e}")
+    _orig_fetch_application(app_no, session)
+
+
+def _orig_fetch_application(app_no: str, session=None) -> Dict:
     """
     Fetch complete trademark details from eRegister.
     Method 1: Playwright renders page (handles JS)
