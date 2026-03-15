@@ -1,24 +1,37 @@
-# scrapers/__init__.py
-from .ipindia import fetch_cause_list, fetch_public_search, fetch_tla_queue, get_efiling
+# scrapers/__init__.py — MarkShield Scraper Package
+# Core imports (always available — these work without any API key)
+from .ipindia import (
+    fetch_cause_list,
+    fetch_public_search,
+    fetch_tla_queue,
+    get_efiling,
+)
 
+# Application fetch — uses eregister (Playwright + requests fallback)
 try:
-    from .binbash_api import (
-        get_trademark_by_appno  as fetch_application,
-        bulk_fetch_by_appnos    as fetch_applications_bulk,
-        public_search,
-        get_attorney_portfolio,
-        get_proprietor_trademarks,
-    )
-except Exception:
+    from .eregister import fetch_application, fetch_applications_bulk
+except ImportError:
+    # fallback to ipindia if eregister not present
     from .ipindia import fetch_application, fetch_applications_bulk  # type: ignore
 
+# Bulk portfolio sync — uses ipindia_bulk
 try:
-    from .eregister import fetch_application as _er_fetch  # fallback only
-except Exception:
+    from .ipindia_bulk import (
+        sync_attorney_portfolio,
+        fetch_eregister_single,
+        fetch_tla_queue_full,
+        fetch_causelist_full,
+    )
+except ImportError:
     pass
 
 __all__ = [
-    "fetch_cause_list", "fetch_application", "fetch_applications_bulk",
-    "fetch_public_search", "fetch_tla_queue", "get_efiling",
-    "get_attorney_portfolio", "get_proprietor_trademarks", "public_search",
+    "fetch_cause_list",
+    "fetch_application",
+    "fetch_applications_bulk",
+    "fetch_public_search",
+    "fetch_tla_queue",
+    "get_efiling",
+    "sync_attorney_portfolio",
+    "fetch_eregister_single",
 ]
