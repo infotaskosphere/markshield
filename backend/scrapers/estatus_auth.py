@@ -1,14 +1,17 @@
 """
-scrapers/estatus_auth.py — IP India eStatus Session Manager
-============================================================
+scrapers/estatus_auth.py — IP India eStatus One-Shot OTP Flow
+=============================================================
 URL: https://tmrsearch.ipindia.gov.in/estatus/OTP/index
 
-Actual form structure (from live page):
-  - Email input OR Mobile No input
-  - Math captcha "Evaluate the Expression: 7 - 1 = ?"
-  - captcha answer input  
-  - Send OTP button → OTP sent
-  - OTP input + Verify button → session saved
+Key insight: The math captcha (7-1=?) changes every page load and is
+tied to the session cookie. So we must:
+  1. GET the page  → get session cookie + captcha expression
+  2. Solve the math immediately (same session)
+  3. POST email/mobile + answer → OTP sent  (same session)
+  4. User enters OTP → POST verify          (same session)
+
+ALL steps use the SAME requests.Session() object.
+Never open a new tab — the captcha will be different.
 """
 
 import re, logging, requests, urllib3, json
@@ -18,19 +21,17 @@ from database import get_conn
 urllib3.disable_warnings()
 log = logging.getLogger("markshield.estatus")
 
-BASE     = "https://tmrsearch.ipindia.gov.in/estatus"
-OTP_URL  = f"{BASE}/OTP/index"
+OTP_URL = "https://tmrsearch.ipindia.gov.in/estatus/OTP/index"
+BASE    = "https://tmrsearch.ipindia.gov.in/estatus"
 
 HEADERS = {
     "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Accept":          "text/html,application/xhtml+xml,*/*;q=0.8",
     "Accept-Language": "en-IN,en;q=0.9",
     "Connection":      "keep-alive",
-    "Referer":         "https://tmrsearch.ipindia.gov.in/estatus/",
 }
 
-
-# ── DB session storage ────────────────────────────────────────────────────────
+# ── DB: one active session ────────────────────────────────────────────────────
 
 def _init_table():
     with get_conn() as conn:
@@ -44,19 +45,51 @@ def _init_table():
                 last_used  TEXT
             )
         """)
+        # Store pending OTP session between requests
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS estatus_pending (
+                id       INTEGER PRIMARY KEY,
+                cookies  TEXT,
+                email    TEXT,
+                mobile   TEXT,
+                ts       TEXT
+            )
+        """)
 
 
-def save_session(cookies: dict, email: str = "", mobile: str = ""):
+def save_session(cookies: dict, email="", mobile=""):
     _init_table()
     from datetime import datetime
     now = datetime.utcnow().isoformat() + "Z"
     with get_conn() as conn:
         conn.execute("DELETE FROM estatus_sessions")
         conn.execute(
-            "INSERT INTO estatus_sessions (cookies, email, mobile, created_at, last_used) VALUES (?,?,?,?,?)",
+            "INSERT INTO estatus_sessions (cookies,email,mobile,created_at,last_used) VALUES(?,?,?,?,?)",
             (json.dumps(cookies), email, mobile, now, now)
         )
-    log.info("eStatus session saved")
+    log.info("eStatus session saved permanently")
+
+
+def _save_pending(cookies: dict, email="", mobile=""):
+    """Save intermediate session cookies between send-otp and verify-otp calls."""
+    _init_table()
+    from datetime import datetime
+    with get_conn() as conn:
+        conn.execute("DELETE FROM estatus_pending")
+        conn.execute(
+            "INSERT INTO estatus_pending (cookies,email,mobile,ts) VALUES(?,?,?,?)",
+            (json.dumps(cookies), email, mobile, datetime.utcnow().isoformat()+"Z")
+        )
+
+
+def _load_pending() -> dict:
+    try:
+        _init_table()
+        with get_conn() as conn:
+            row = conn.execute("SELECT cookies FROM estatus_pending LIMIT 1").fetchone()
+        return json.loads(row["cookies"]) if row else {}
+    except Exception:
+        return {}
 
 
 def load_session() -> dict:
@@ -66,11 +99,9 @@ def load_session() -> dict:
             row = conn.execute(
                 "SELECT cookies FROM estatus_sessions ORDER BY id DESC LIMIT 1"
             ).fetchone()
-        if row:
-            return json.loads(row["cookies"])
-    except Exception as e:
-        log.warning(f"load_session: {e}")
-    return {}
+        return json.loads(row["cookies"]) if row else {}
+    except Exception:
+        return {}
 
 
 def has_session() -> bool:
@@ -81,248 +112,253 @@ def clear_session():
     try:
         with get_conn() as conn:
             conn.execute("DELETE FROM estatus_sessions")
+            conn.execute("DELETE FROM estatus_pending")
     except Exception:
         pass
 
 
-# ── Solve math captcha ────────────────────────────────────────────────────────
+# ── Math captcha solver ───────────────────────────────────────────────────────
 
-def _solve_expr(text: str):
-    """Extract and solve math expression like '7 - 1 = ?' from any text."""
-    # Patterns: "7 - 1 = ?", "7-1=?", "3 + 4 = ?", "8 * 2 = ?"
-    m = re.search(r"(\d+)\s*([\+\-\*×\/÷])\s*(\d+)\s*=\s*[\?_]", text)
+def _solve_captcha_html(html: str):
+    """
+    Find and solve math expression in HTML.
+    Patterns: "7 - 1 = ?", "3+4=?", "8 × 2 = _"
+    Returns (expr_text, answer) or (None, None)
+    """
+    soup = BeautifulSoup(html, "lxml")
+
+    # Try every element's text
+    for el in soup.find_all(True):
+        text = el.get_text(" ", strip=True)
+        m = re.search(r"(\d+)\s*([\+\-\*×x\/÷])\s*(\d+)\s*[=]\s*[\?_]", text)
+        if m:
+            a  = int(m.group(1))
+            op = m.group(2)
+            b  = int(m.group(3))
+            ans = {
+                "+": a + b,
+                "-": a - b,
+                "*": a * b, "×": a * b, "x": a * b,
+                "/": a // b if b else 0, "÷": a // b if b else 0,
+            }.get(op, 0)
+            expr = m.group(0)
+            log.info(f"Captcha solved: {expr} → {ans}")
+            return expr, ans
+
+    # Also try raw HTML (sometimes wrapped in spans)
+    m = re.search(r"(\d+)\s*([\+\-\*×x\/÷])\s*(\d+)\s*[=]\s*[\?_]", html)
     if m:
         a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
-        ans = {"+": a+b, "-": a-b, "*": a*b, "×": a*b, "/": a//b if b else 0, "÷": a//b if b else 0}.get(op)
+        ans = {"+":a+b,"-":a-b,"*":a*b,"×":a*b,"x":a*b,"/":a//b if b else 0,"÷":a//b if b else 0}.get(op,0)
         return m.group(0), ans
+
     return None, None
 
 
-def _get_session() -> requests.Session:
-    s = requests.Session()
-    s.headers.update(HEADERS)
-    return s
+def _build_form(soup: BeautifulSoup, extra: dict = None) -> dict:
+    """Collect all form fields + override with extra values."""
+    form = {}
+    # All hidden fields (CSRF, ViewState, etc.)
+    for inp in soup.find_all("input", {"type": "hidden"}):
+        n = inp.get("name") or inp.get("id")
+        if n:
+            form[n] = inp.get("value", "")
+    if extra:
+        form.update(extra)
+    return form
 
 
-# ── Step 1: Load captcha ──────────────────────────────────────────────────────
+def _find_field(soup: BeautifulSoup, *keywords) -> str:
+    """Find an input field name by matching keywords against name/id/placeholder."""
+    for inp in soup.find_all("input"):
+        n  = (inp.get("name")        or "").lower()
+        i  = (inp.get("id")          or "").lower()
+        ph = (inp.get("placeholder") or "").lower()
+        combined = f"{n} {i} {ph}"
+        if any(k in combined for k in keywords):
+            return inp.get("name") or inp.get("id") or ""
+    return ""
 
-def get_captcha_info(email: str = "", mobile: str = "") -> dict:
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLIC API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def send_otp_atomic(email: str = "", mobile: str = "") -> dict:
     """
-    Fetch eStatus page and extract math captcha.
-    Returns captcha expression + auto-solved answer + session cookies.
+    ONE atomic call:
+      1. GET eStatus page
+      2. Solve math captcha automatically
+      3. POST form → OTP sent to user's email/mobile
+
+    Session cookies are saved to DB for the verify step.
+    Returns { success, message, captcha_expr, captcha_answer }
     """
     try:
-        s = _get_session()
+        s = requests.Session()
+        s.headers.update(HEADERS)
+
+        # ── Step A: GET the page ──────────────────────────────────────────────
         resp = s.get(OTP_URL, timeout=25, verify=True)
         resp.raise_for_status()
+        log.info(f"eStatus GET: {resp.status_code}, {len(resp.text)} chars")
 
         soup = BeautifulSoup(resp.text, "lxml")
 
-        # Debug: get all text on page to find captcha
-        all_text = soup.get_text(" ", strip=True)
-        log.info(f"Page text sample: {all_text[:500]}")
+        # ── Step B: Solve captcha ─────────────────────────────────────────────
+        captcha_expr, captcha_ans = _solve_captcha_html(resp.text)
 
-        captcha_expr   = ""
-        captcha_answer = None
+        if captcha_ans is None:
+            log.warning(f"Captcha not found in HTML. Page snippet: {resp.text[500:1000]}")
+            return {
+                "success": False,
+                "error":   "Could not find math captcha on IP India page",
+                "hint":    "IP India page structure may have changed",
+                "page_snippet": resp.text[500:900],
+            }
 
-        # Strategy 1: find any element containing math expression
-        for el in soup.find_all(True):
-            text = el.get_text(strip=True)
-            expr, ans = _solve_expr(text)
-            if expr and ans is not None:
-                captcha_expr   = text
-                captcha_answer = ans
-                log.info(f"Found captcha in <{el.name}>: '{text}' → {ans}")
-                break
+        log.info(f"Captcha: '{captcha_expr}' → {captcha_ans}")
 
-        # Strategy 2: search raw HTML for math pattern
-        if not captcha_expr:
-            expr, ans = _solve_expr(resp.text)
-            if expr and ans is not None:
-                captcha_expr   = expr
-                captcha_answer = ans
-                log.info(f"Found captcha in raw HTML: {expr} → {ans}")
+        # ── Step C: Build form ────────────────────────────────────────────────
+        form = _build_form(soup)
 
-        # Get all form field names for debugging
-        fields = {}
-        for inp in soup.find_all(["input", "select"]):
-            n = inp.get("name") or inp.get("id") or ""
-            t = inp.get("type","text")
-            if n:
-                fields[n] = {"type": t, "value": inp.get("value","")}
+        # Email field
+        ef = _find_field(soup, "email", "mail")
+        if ef:
+            form[ef] = email
+        else:
+            form["ctl00$ContentPlaceHolder1$txtEmail"] = email
+            form["Email"] = email
 
-        return {
-            "success":         True,
-            "captcha_expr":    captcha_expr or "Not found — check backend logs",
-            "captcha_answer":  captcha_answer,
-            "session_cookies": dict(s.cookies),
-            "form_fields":     list(fields.keys()),  # for debugging
-            "page_url":        resp.url,
-            "status":          resp.status_code,
-        }
+        # Mobile field
+        mf = _find_field(soup, "mobile", "phone", "mob", "cell")
+        if mf:
+            form[mf] = mobile
+        else:
+            form["ctl00$ContentPlaceHolder1$txtMobile"] = mobile
+            form["Mobile"] = mobile
 
-    except Exception as e:
-        log.error(f"get_captcha_info error: {e}")
-        return {"success": False, "error": str(e)}
+        # Captcha answer field
+        cf = _find_field(soup, "captcha", "answer", "expression", "expr", "code")
+        if cf:
+            form[cf] = str(captcha_ans)
+        else:
+            form["ctl00$ContentPlaceHolder1$txtCaptcha"] = str(captcha_ans)
+            form["CaptchaCode"] = str(captcha_ans)
+            form["Answer"] = str(captcha_ans)
 
-
-# ── Step 2: Send OTP ──────────────────────────────────────────────────────────
-
-def send_otp(
-    email: str = "",
-    mobile: str = "",
-    captcha_answer: int = None,
-    session_cookies: dict = None,
-) -> dict:
-    try:
-        s = _get_session()
-        if session_cookies:
-            for k, v in session_cookies.items():
-                s.cookies.set(k, v)
-
-        # Re-fetch page to get fresh form state
-        home = s.get(OTP_URL, timeout=20, verify=True)
-        soup = BeautifulSoup(home.text, "lxml")
-
-        # Collect ALL hidden fields (CSRF etc.)
-        form = {}
-        for inp in soup.find_all("input", {"type": "hidden"}):
-            n = inp.get("name") or inp.get("id")
-            if n:
-                form[n] = inp.get("value", "")
-
-        # Find email and mobile fields by scanning all inputs
-        for inp in soup.find_all("input", {"type": ["text", "email", "tel", ""]}):
-            n = (inp.get("name") or inp.get("id") or "").lower()
-            ph = (inp.get("placeholder") or "").lower()
-            real_name = inp.get("name") or inp.get("id") or ""
-            if not real_name:
-                continue
-
-            if any(k in n or k in ph for k in ["email", "mail"]):
-                form[real_name] = email
-                log.info(f"Set email field: {real_name} = {email}")
-            elif any(k in n or k in ph for k in ["mobile", "phone", "cell", "mob"]):
-                form[real_name] = mobile
-                log.info(f"Set mobile field: {real_name} = {mobile}")
-
-        # Find captcha answer field
-        for inp in soup.find_all("input", {"type": ["text", "number", ""]}):
-            n = (inp.get("name") or inp.get("id") or "").lower()
-            ph = (inp.get("placeholder") or "").lower()
-            real_name = inp.get("name") or inp.get("id") or ""
-            if not real_name:
-                continue
-            if any(k in n or k in ph for k in ["captcha","answer","code","expression","expr"]):
-                form[real_name] = str(captcha_answer) if captcha_answer is not None else ""
-                log.info(f"Set captcha field: {real_name} = {captcha_answer}")
-
-        # Find submit button
+        # Submit button
         for btn in soup.find_all("input", {"type": "submit"}):
             n = btn.get("name") or btn.get("id")
             if n:
-                v = btn.get("value","Send OTP")
-                if any(k in v.lower() for k in ["otp","send","submit"]):
-                    form[n] = v
-                    log.info(f"Submit button: {n} = {v}")
+                form[n] = btn.get("value", "Send OTP")
 
-        for btn in soup.find_all("button", {"type": "submit"}):
-            n = btn.get("name") or btn.get("id")
-            if n:
-                form[n] = btn.get("value","")
+        log.info(f"Posting form with fields: {list(form.keys())}")
 
-        log.info(f"Sending form: {list(form.keys())}")
-
-        resp = s.post(
+        # ── Step D: POST ──────────────────────────────────────────────────────
+        resp2 = s.post(
             OTP_URL, data=form, timeout=25, verify=True,
-            headers={**HEADERS, "Content-Type": "application/x-www-form-urlencoded",
-                     "Referer": OTP_URL},
+            headers={**HEADERS,
+                     "Referer":      OTP_URL,
+                     "Content-Type": "application/x-www-form-urlencoded"},
             allow_redirects=True,
         )
 
-        text_lower = resp.text.lower()
-        success = any(k in text_lower for k in ["otp", "sent", "verify", "enter otp", "enter the otp"])
-
-        log.info(f"Send OTP response: {resp.status_code}, success={success}")
-        log.info(f"Response snippet: {resp.text[:300]}")
-
-        return {
-            "success":        success,
-            "message":        "OTP sent to your email/mobile — check inbox/SMS" if success else "Failed to send OTP — check captcha answer",
-            "session_cookies": dict(s.cookies),
-            "status_code":    resp.status_code,
-            "response_hint":  resp.text[:200],
-        }
-
-    except Exception as e:
-        log.error(f"send_otp error: {e}")
-        return {"success": False, "error": str(e)}
-
-
-# ── Step 3: Verify OTP → save session ────────────────────────────────────────
-
-def verify_otp(
-    otp: str,
-    email: str = "",
-    mobile: str = "",
-    session_cookies: dict = None,
-) -> dict:
-    try:
-        s = _get_session()
-        if session_cookies:
-            for k, v in session_cookies.items():
-                s.cookies.set(k, v)
-
-        home = s.get(OTP_URL, timeout=20, verify=True)
-        soup = BeautifulSoup(home.text, "lxml")
-
-        form = {}
-        for inp in soup.find_all("input", {"type": "hidden"}):
-            n = inp.get("name") or inp.get("id")
-            if n:
-                form[n] = inp.get("value", "")
-
-        # Find OTP input field
-        otp_found = False
-        for inp in soup.find_all("input", {"type": ["text","number","tel",""]}):
-            n = (inp.get("name") or inp.get("id") or "").lower()
-            ph = (inp.get("placeholder") or "").lower()
-            real_name = inp.get("name") or inp.get("id") or ""
-            if not real_name:
-                continue
-            if any(k in n or k in ph for k in ["otp","verify","code","pin"]):
-                form[real_name] = otp.strip()
-                otp_found = True
-                log.info(f"OTP field: {real_name} = {otp}")
-
-        if not otp_found:
-            # Try all text inputs
-            for inp in soup.find_all("input", {"type": "text"}):
-                n = inp.get("name") or inp.get("id")
-                if n:
-                    form[n] = otp.strip()
-
-        # Verify submit button
-        for btn in soup.find_all("input", {"type": "submit"}):
-            n = btn.get("name") or btn.get("id")
-            if n:
-                v = btn.get("value","Verify")
-                if any(k in v.lower() for k in ["verify","submit","confirm","check"]):
-                    form[n] = v
-
-        resp = s.post(
-            OTP_URL, data=form, timeout=25, verify=True,
-            headers={**HEADERS, "Content-Type": "application/x-www-form-urlencoded",
-                     "Referer": OTP_URL},
-            allow_redirects=True,
-        )
-
-        text_lower = resp.text.lower()
-        # Success indicators
+        text_lower = resp2.text.lower()
         success = any(k in text_lower for k in [
-            "logout", "application no", "trademark", "search", "home",
-            "welcome", "successfully", "valid", "authenticated"
-        ]) and "invalid" not in text_lower and "wrong" not in text_lower
+            "otp", "sent", "verify", "enter otp", "enter the otp",
+            "check your", "email sent", "sms sent"
+        ])
+
+        log.info(f"POST result: {resp2.status_code}, success={success}")
+        log.info(f"Response: {resp2.text[:400]}")
+
+        if success:
+            # Save cookies for verify step
+            _save_pending(dict(s.cookies), email=email, mobile=mobile)
+            return {
+                "success":        True,
+                "message":        f"OTP sent to {'email' if email else 'mobile'} — check inbox/SMS",
+                "captcha_expr":   captcha_expr,
+                "captcha_answer": captcha_ans,
+            }
+
+        # Check for specific errors in response
+        error_msg = "Failed to send OTP"
+        if "invalid captcha" in text_lower or "wrong captcha" in text_lower:
+            error_msg = "Captcha solving failed — IP India may have changed their format"
+        elif "invalid email" in text_lower:
+            error_msg = "Invalid email address"
+        elif "invalid mobile" in text_lower:
+            error_msg = "Invalid mobile number"
+
+        return {
+            "success":        False,
+            "message":        error_msg,
+            "captcha_expr":   captcha_expr,
+            "captcha_answer": captcha_ans,
+            "response_hint":  resp2.text[300:700],
+        }
+
+    except Exception as e:
+        log.error(f"send_otp_atomic error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def verify_otp(otp: str, email: str = "", mobile: str = "") -> dict:
+    """
+    Verify OTP using the saved pending session cookies.
+    Saves permanent session on success.
+    """
+    try:
+        pending_cookies = _load_pending()
+        if not pending_cookies:
+            return {"success": False, "error": "Session expired — click Send OTP again"}
+
+        s = requests.Session()
+        s.headers.update(HEADERS)
+        for k, v in pending_cookies.items():
+            s.cookies.set(k, v)
+
+        # Re-fetch to get current form state
+        resp = s.get(OTP_URL, timeout=20, verify=True)
+        soup = BeautifulSoup(resp.text, "lxml")
+
+        form = _build_form(soup)
+
+        # OTP field
+        of = _find_field(soup, "otp", "verify", "pin", "code")
+        if of:
+            form[of] = otp.strip()
+        else:
+            form["ctl00$ContentPlaceHolder1$txtOTP"] = otp.strip()
+            form["OTP"] = otp.strip()
+            form["otp"] = otp.strip()
+
+        # Verify button
+        for btn in soup.find_all("input", {"type": "submit"}):
+            n = btn.get("name") or btn.get("id")
+            if n:
+                v = btn.get("value", "")
+                if any(k in v.lower() for k in ["verify","submit","confirm","check","ok"]):
+                    form[n] = v
+                    break
+
+        resp2 = s.post(
+            OTP_URL, data=form, timeout=25, verify=True,
+            headers={**HEADERS,
+                     "Referer":      OTP_URL,
+                     "Content-Type": "application/x-www-form-urlencoded"},
+            allow_redirects=True,
+        )
+
+        text_lower = resp2.text.lower()
+
+        # Success: logged in, sees application search page
+        success = any(k in text_lower for k in [
+            "application no", "appno", "trademark", "search trademark",
+            "logout", "welcome", "home", "successfully verified",
+        ]) and not any(k in text_lower for k in ["invalid otp","wrong otp","otp expired","incorrect"])
 
         if success:
             cookies = dict(s.cookies)
@@ -330,68 +366,45 @@ def verify_otp(
             return {
                 "success": True,
                 "message": "✅ Session saved permanently — full IP India data now enabled",
-                "cookies_saved": list(cookies.keys()),
+                "cookies_saved": len(cookies),
             }
 
-        # Check for specific error messages
-        error_hint = ""
-        if "invalid" in text_lower: error_hint = "Invalid OTP"
-        elif "expired" in text_lower: error_hint = "OTP expired — request new one"
-        elif "wrong" in text_lower: error_hint = "Wrong OTP"
+        error = "OTP incorrect or expired"
+        if "expired" in text_lower: error = "OTP expired — click Send OTP again"
+        elif "invalid" in text_lower: error = "Invalid OTP — check and retry"
+        elif "wrong"   in text_lower: error = "Wrong OTP — check and retry"
 
-        return {
-            "success": False,
-            "message": f"OTP verification failed — {error_hint or 'check OTP and try again'}",
-            "response_hint": resp.text[:300],
-        }
+        return {"success": False, "message": error}
 
     except Exception as e:
         log.error(f"verify_otp error: {e}")
         return {"success": False, "error": str(e)}
 
 
-# ── Fetch with saved session ──────────────────────────────────────────────────
-
 def fetch_with_session(app_no: str) -> dict:
-    """Use saved session to fetch trademark details."""
+    """Use saved session to fetch trademark details from eStatus."""
     cookies = load_session()
     if not cookies:
         return {}
-
     try:
-        s = _get_session()
+        s = requests.Session()
+        s.headers.update(HEADERS)
         for k, v in cookies.items():
             s.cookies.set(k, v)
 
         for url in [
             f"{BASE}/OTP/Home?AppNosValue={app_no}",
             f"{BASE}/OTP/AppStatus?AppNosValue={app_no}",
-            f"{BASE}/?AppNosValue={app_no}",
         ]:
-            try:
-                r = s.get(url, timeout=25, verify=True)
-                if r.status_code == 200 and len(r.text) > 2000:
-                    from scrapers.ipindia_scraper import _parse_eregister_html
-                    data = _parse_eregister_html(r.text)
-                    if data.get("trademark_name") or data.get("status"):
-                        data["app_no"] = app_no
-                        data["source"] = "estatus_session"
-                        # Update last_used
-                        try:
-                            from datetime import datetime
-                            with get_conn() as conn:
-                                conn.execute(
-                                    "UPDATE estatus_sessions SET last_used=?",
-                                    (datetime.utcnow().isoformat()+"Z",)
-                                )
-                        except Exception:
-                            pass
-                        return data
-            except Exception:
-                continue
-
+            r = s.get(url, timeout=25, verify=True)
+            if r.status_code == 200 and len(r.text) > 2000:
+                from scrapers.ipindia_scraper import _parse_eregister_html
+                data = _parse_eregister_html(r.text)
+                if data.get("trademark_name") or data.get("status"):
+                    data["app_no"] = app_no
+                    data["source"] = "estatus"
+                    return data
         return {}
-
     except Exception as e:
-        log.error(f"fetch_with_session error: {e}")
+        log.error(f"fetch_with_session: {e}")
         return {}
