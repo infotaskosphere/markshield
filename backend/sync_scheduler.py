@@ -240,24 +240,27 @@ def run_scheduler():
 
 # ── API endpoint for cache reads ───────────────────────────────────────────────
 def get_cached_portfolio(tma_code: str) -> dict:
-    """Read cached portfolio — used by Flask routes for instant response."""
-    data = _load(f"portfolio_{tma_code}")
-    if data:
-        data["from_cache"] = True
-        data["cache_age_minutes"] = int(
-            (datetime.utcnow() - datetime.fromisoformat(
-                data.get("synced_at","2000-01-01T00:00:00Z").rstrip("Z")
-            )).total_seconds() / 60
-        )
-    return data
+    """Read portfolio from DB — instant response."""
+    try:
+        from database import get_attorney_portfolio
+        apps = get_attorney_portfolio(tma_code=tma_code)
+        if apps:
+            return {"applications": apps, "from_cache": True, "cache_age_minutes": 0}
+    except Exception as e:
+        log.warning(f"DB read error: {e}")
+    return {}
 
 
 def get_cached_queue(tma_code: str) -> dict:
-    return _load(f"queue_{tma_code}")
+    try:
+        from scrapers.ipindia import fetch_tla_queue
+        return fetch_tla_queue(username=tma_code)
+    except Exception:
+        return {}
 
 
 def get_cached_causelist(tma_code: str) -> dict:
-    return _load(f"causelist_{tma_code}")
+    return {}
 
 
 def register_tma_for_sync(tma_code: str, agent_name: str = ""):
