@@ -6,6 +6,7 @@ from .efiling     import bp_efiling
 from .portfolio   import bp_portfolio
 from .queue_list  import bp_queue          # ← was missing from app.py
 from .ai          import bp_ai
+from .import_api  import bp_import
 
 __all__ = [
     "bp_cause",
@@ -16,4 +17,5 @@ __all__ = [
     "bp_portfolio",
     "bp_queue",
     "bp_ai",
+    "bp_import",
 ]
