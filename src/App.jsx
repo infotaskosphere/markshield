@@ -25,9 +25,9 @@ const LS = {
     } catch { return fallback }
   },
   set: (key, value) => {
-    try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
+    try { localStorage.setItem(key, JSON.stringify(value)) } catch(_e) {}
   },
-  del: (key) => { try { localStorage.removeItem(key) } catch {} },
+  del: (key) => { try { localStorage.removeItem(key) } catch(_e) {} },
 }
 
 const KEYS = {
