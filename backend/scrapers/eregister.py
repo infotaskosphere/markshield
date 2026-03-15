@@ -162,6 +162,17 @@ def fetch_application(app_no: str, session: Optional[requests.Session] = None) -
         "view_url": f"{EREGISTER_VIEW}?AppNosValue={app_no}",
     }
 
+    # ── Method 0: Playwright (most reliable — drives real browser) ───────────
+    try:
+        from scrapers.playwright_scraper import fetch_application_playwright
+        result = fetch_application_playwright(app_no)
+        if _has_meaningful_data(result):
+            log.info(f"Playwright fetch success for {app_no}")
+            return {**base_result, **result}
+        log.warning(f"Playwright returned no data for {app_no}, falling back to requests")
+    except Exception as e:
+        log.warning(f"Playwright attempt failed: {e}, falling back to requests")
+
     # ── Method 1: POST to eregister.aspx (correct method) ───────────────────
     try:
         log.info(f"e-Register POST attempt: {app_no}")
