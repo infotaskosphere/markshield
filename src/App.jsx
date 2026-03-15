@@ -108,6 +108,18 @@ export default function App() {
     setAgentProfile({})
   }
 
+  const handleProfileUpdate = (newProfile, newTmaData) => {
+    setAgentProfile(newProfile)
+    if (newTmaData) setTmaData(newTmaData)
+    // Persist immediately to ms_profiles
+    const profiles = LS.get(KEYS.profiles, {})
+    profiles[currentUser.username] = {
+      agentProfile: newProfile,
+      tmaData: newTmaData || tmaData,
+    }
+    LS.set(KEYS.profiles, profiles)
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (authStage === "login") {
     return <Login onSuccess={handleLoginSuccess} />
@@ -130,6 +142,7 @@ export default function App() {
     efilingUser:      agentProfile?.efilingUser || "",
     efilingConnected: !!(agentProfile?.efilingUser && tmaData?.connectedAt),
     onLogout:         handleLogout,
+    onProfileUpdate:  handleProfileUpdate,
   }
 
   return (
