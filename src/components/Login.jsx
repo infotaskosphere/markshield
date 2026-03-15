@@ -8,7 +8,7 @@ function loadAccounts() {
   try {
     const raw = localStorage.getItem(ACCOUNTS_KEY)
     if (raw) return JSON.parse(raw)
-  } catch {}
+  } catch(_e) {}
   // First-ever load — seed the admin account with Manthan's email
   const defaults = [{
     id:        "admin_001",
@@ -28,7 +28,7 @@ function loadAccounts() {
 }
 
 function saveAccounts(accounts) {
-  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)) } catch {}
+  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)) } catch(_e) {}
 }
 
 // Match by username OR email (case-insensitive)
