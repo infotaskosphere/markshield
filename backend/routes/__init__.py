@@ -8,6 +8,7 @@ from .queue_list  import bp_queue          # ← was missing from app.py
 from .ai          import bp_ai
 from .import_api     import bp_import
 from .estatus_setup  import bp_estatus
+from .efiling_login  import bp_efiling_login
 
 __all__ = [
     "bp_cause",
@@ -20,4 +21,5 @@ __all__ = [
     "bp_ai",
     "bp_import",
     "bp_estatus",
+    "bp_efiling_login",
 ]
