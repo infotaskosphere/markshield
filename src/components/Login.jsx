@@ -306,7 +306,10 @@ export default function Login({ onSuccess }) {
                 <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".1em", color: "#3d4f78", marginBottom: 6 }}>Role</div>
                 <select value={regRole} onChange={e => setRegRole(e.target.value)}
                   style={{ width: "100%", background: "#020610", border: "1.5px solid #1a2545", borderRadius: 10, padding: "11px 13px", color: "#dde4f2", fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, outline: "none", cursor: "pointer" }}>
-                  <option>IP Attorney</option><option>Paralegal</option><option>Clerk</option><option>Intern</option>
+                  <option value="IP Attorney">⚖️ IP Attorney (requires eFiling)</option>
+                  <option value="Paralegal">📋 Paralegal</option>
+                  <option value="Clerk">📁 Clerk</option>
+                  <option value="Intern">🎓 Intern</option>
                 </select>
               </div>
             </div>
