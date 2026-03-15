@@ -65,7 +65,11 @@ export default function Scraper({ context }) {
   const [backendOk,  setBackendOk]  = useState(null)
 
   // Cause List
-  const [clAgent,    setClAgent]    = useState("")
+  // Auto-fill from saved attorney profile
+  const savedAgentName = context?.agentProfile?.fullName?.toUpperCase() || ""
+  const savedTmaCode   = context?.tmaData?.username || context?.agentProfile?.portalUser || ""
+
+  const [clAgent,    setClAgent]    = useState(savedAgentName)
   const [clLocation, setClLocation] = useState("")
   const [clDate,     setClDate]     = useState(new Date().toISOString().slice(0, 10))
   const [clLogs,     setClLogs]     = useState([])
@@ -79,7 +83,7 @@ export default function Scraper({ context }) {
   const [asResults,  setAsResults]  = useState(null)
 
   // Agent Search
-  const [agentQ,     setAgentQ]     = useState("")
+  const [agentQ,     setAgentQ]     = useState(savedAgentName)
   const [agDateFrom, setAgDateFrom] = useState(new Date().toISOString().slice(0, 10))
   const [agDateTo,   setAgDateTo]   = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10)
@@ -89,7 +93,7 @@ export default function Scraper({ context }) {
   const [agResults,  setAgResults]  = useState(null)
 
   // Queue List
-  const [qUsername,  setQUsername]  = useState("")
+  const [qUsername,  setQUsername]  = useState(savedTmaCode)
   const [qAppNo,     setQAppNo]     = useState("")
   const [qlLogs,     setQlLogs]     = useState([])
   const [qlProgress, setQlProgress] = useState(0)
