@@ -15,7 +15,7 @@ services:
     name: backend-markshield
     env: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && playwright install chromium --with-deps
+    buildCommand: pip install -r requirements.txt && playwright install chromium
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
     envVars:
       - key: SECRET_KEY
@@ -28,7 +28,7 @@ services:
     name: markshield-scheduler
     env: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && playwright install chromium --with-deps
+    buildCommand: pip install -r requirements.txt && playwright install chromium
     startCommand: python sync_scheduler.py
     envVars:
       - key: SECRET_KEY
