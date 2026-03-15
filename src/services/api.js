@@ -35,10 +35,29 @@ function apiFetch(path, options, timeoutMs) {
 
 // ── Health ────────────────────────────────────────────────────────────────────
 
-export function checkBackend() {
-  return apiFetch("/health", {}, 15000)
-    .then(function(data) { return !!(data && data.status === "ok") })
-    .catch(function() { return false })
+// Render free-tier can take 30-60s to cold-start.
+// We retry up to 4 times (~90s total) before declaring backend offline.
+export function checkBackend(onRetry) {
+  var attempts = 0
+  var maxAttempts = 4
+
+  function tryOnce() {
+    attempts++
+    return apiFetch("/health", {}, 25000)
+      .then(function(data) {
+        if (data && data.status === "ok") return true
+        throw new Error("bad response")
+      })
+      .catch(function() {
+        if (attempts < maxAttempts) {
+          if (typeof onRetry === "function") onRetry(attempts, maxAttempts)
+          return new Promise(function(res) { setTimeout(res, 6000) }).then(tryOnce)
+        }
+        return false
+      })
+  }
+
+  return tryOnce()
 }
 
 // ── eFiling ───────────────────────────────────────────────────────────────────
