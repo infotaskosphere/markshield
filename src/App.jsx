@@ -15,7 +15,8 @@ import Reports from "./pages/Reports"
 import Team from "./pages/Team"
 import Draft from "./pages/Draft"
 import Pending from "./pages/Pending"
-import Import from "./pages/Import"
+import Import    from "./pages/Import"
+import Settings  from "./pages/Settings"
 
 // ── localStorage helpers ───────────────────────────────────────────────────
 const LS = {
@@ -199,6 +200,7 @@ export default function App() {
           <Route path="draft"      element={<Draft        context={appContext} />} />
           <Route path="team"       element={<Team         context={appContext} />} />
           <Route path="import"     element={<Import       context={appContext} />} />
+          <Route path="settings"   element={<Settings     context={appContext} />} />
         </Route>
       </Routes>
     </BrowserRouter>
