@@ -112,6 +112,8 @@ export default function Login({ onSuccess }) {
         isAdmin:  acc.isAdmin || false,
         tmCode:   acc.tmCode || "",
         initials: acc.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase(),
+        // Pass TMA code so TMASetup wizard can pre-fill it
+        barNo:    acc.tmCode || "",
       })
     }, 700)
   }
@@ -132,6 +134,13 @@ export default function Login({ onSuccess }) {
     }
     if (regEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) {
       setRegError("Please enter a valid email address."); return
+    }
+
+    // IP Attorney must provide TMA code (it will be verified in setup wizard)
+    const isAttorney = regRole === "IP Attorney"
+    if (isAttorney && !regTmCode.trim()) {
+      setRegError("TMA / eFiling code is required for IP Attorneys. Enter your IP India username.")
+      return
     }
 
     const newAcc = {
@@ -306,22 +315,37 @@ export default function Login({ onSuccess }) {
                 <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".1em", color: "#3d4f78", marginBottom: 6 }}>Role</div>
                 <select value={regRole} onChange={e => setRegRole(e.target.value)}
                   style={{ width: "100%", background: "#020610", border: "1.5px solid #1a2545", borderRadius: 10, padding: "11px 13px", color: "#dde4f2", fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, outline: "none", cursor: "pointer" }}>
-                  <option value="IP Attorney">⚖️ IP Attorney (requires eFiling)</option>
-                  <option value="Paralegal">📋 Paralegal</option>
-                  <option value="Clerk">📁 Clerk</option>
-                  <option value="Intern">🎓 Intern</option>
+                  <option value="IP Attorney">⚖️ IP Attorney — needs TMA code</option>
+                  <option value="Paralegal">📋 Paralegal — team member</option>
+                  <option value="Clerk">📁 Clerk — team member</option>
+                  <option value="Intern">🎓 Intern — team member</option>
                 </select>
               </div>
             </div>
 
-            <div className="auth-field">
-              <label>TMA / Bar Council Code (optional)</label>
-              <div className="auth-field-wrap">
-                <span className="auth-field-icon">🏛</span>
-                <input {...inp} className="auth-input" type="text" placeholder="e.g. TMA/GJ/2847"
-                  value={regTmCode} onChange={e => setRegTmCode(e.target.value)} style={{ paddingLeft: 40 }} />
+            {/* TMA code — required for Attorney, hidden for team members */}
+            {regRole === "IP Attorney" ? (
+              <div className="auth-field">
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span>TMA / eFiling Code <span style={{ color: "#f43f5e" }}>*</span></span>
+                  <span style={{ fontSize: 10, color: "#3d4f78", fontWeight: 400 }}>Required — verified on first login</span>
+                </label>
+                <div className="auth-field-wrap">
+                  <span className="auth-field-icon">🏛</span>
+                  <input {...inp} className="auth-input" type="text"
+                    placeholder="e.g. TMA/GJ/2847 or manthan15"
+                    value={regTmCode} onChange={e => setRegTmCode(e.target.value)} style={{ paddingLeft: 40 }} />
+                </div>
+                <div style={{ fontSize: 11, color: "#3d4f78", marginTop: 5, paddingLeft: 2 }}>
+                  Your IP India eFiling username. Will be verified against the TLA Queue on first login.
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ background: "rgba(0,196,160,.06)", border: "1px solid rgba(0,196,160,.14)", borderRadius: 9, padding: "11px 14px", marginBottom: 16, fontSize: 12, color: "#8898bf", display: "flex", gap: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 16 }}>👥</span>
+                <span>Team members (<b style={{ color: "#dde4f2" }}>{regRole}</b>) don't need a TMA code — your attorney will grant you access to their portfolio.</span>
+              </div>
+            )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               <div>
