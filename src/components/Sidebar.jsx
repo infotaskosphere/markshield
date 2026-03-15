@@ -197,11 +197,12 @@ export default function Sidebar({ context, mobileOpen, onClose }) {
       )}
 
       <aside className={`sidebar${mobileOpen ? " sidebar-mobile-open" : ""}`}>
-        <div className="logo-area" style={{ justifyContent: "space-between" }}>
+        <div className="logo-area" style={{ justifyContent: "center", position: "relative", padding: "16px 18px" }}>
+          <button onClick={onClose} className="sidebar-close-btn" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)" }}>✕</button>
           <img
             src="/logo.png"
             alt="MarkShield"
-            style={{ height: 40, width: "auto", objectFit: "contain" }}
+            style={{ height: 52, width: "auto", objectFit: "contain", display: "block" }}
             onError={e => {
               e.target.style.display = "none"
               e.target.nextSibling.style.display = "flex"
@@ -209,11 +210,8 @@ export default function Sidebar({ context, mobileOpen, onClose }) {
           />
           <div style={{ display: "none", alignItems: "center", gap: 10 }}>
             <div className="logo-mark">⚖</div>
-            <div>
-              <div className="logo-name">Mark<em>Shield</em></div>
-            </div>
+            <div className="logo-name">Mark<em>Shield</em></div>
           </div>
-          <button onClick={onClose} className="sidebar-close-btn">✕</button>
         </div>
 
         <div className="nav-scroll">
