@@ -48,3 +48,53 @@ def pending_replies():
         "source_url": "https://ipindiaonline.gov.in/trademarkefiling/DynamicUtilities/TLA_QueueList_new.aspx",
         "fetched_at": _now(),
     })
+
+
+@bp_queue.route("/verify-tma", methods=["POST"])
+def verify_tma():
+    """
+    POST /api/verify-tma
+    Body: { "tma_code": "TMA/GJ/2847" }
+
+    Verifies a TMA code by fetching the public TLA Queue list.
+    No login or CAPTCHA required — this is a public IP India endpoint.
+    Returns: { success, tma_code, items_found, attorney_name, message }
+    """
+    body     = request.get_json(silent=True) or {}
+    tma_code = body.get("tma_code", "").strip()
+
+    if not tma_code:
+        return jsonify({"success": False, "message": "TMA code is required."}), 400
+
+    result = fetch_tla_queue(username=tma_code)
+
+    if "error" in result:
+        return jsonify({
+            "success": False,
+            "message": f"Could not reach IP India: {result['error']}"
+        }), 502
+
+    items = result.get("items", [])
+
+    # Try to extract attorney name from results
+    attorney_name = ""
+    for item in items:
+        agent = item.get("agent", "")
+        if agent and tma_code.upper() in agent.upper():
+            attorney_name = agent
+            break
+    if not attorney_name and items:
+        attorney_name = items[0].get("agent", "")
+
+    return jsonify({
+        "success":       True,
+        "tma_code":      tma_code,
+        "items_found":   len(items),
+        "attorney_name": attorney_name,
+        "pending":       result.get("pending", 0),
+        "overdue":       result.get("overdue", 0),
+        "message":       f"TMA code verified — {len(items)} matter(s) found in IP India queue."
+                         if items else
+                         "TMA code accepted. No pending matters found (queue may be empty).",
+        "connected_at":  _now(),
+    })
