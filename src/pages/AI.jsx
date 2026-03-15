@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react"
+import { fetchAIChat } from "../services/api"
 
 const CLAUDE_SYSTEM = `You are LexAI, an expert AI trademark attorney assistant for the MarkShield platform.
 You have deep knowledge of Indian trademark law, IP India procedures, the Trademarks Act 1999, and trademark prosecution.
@@ -50,7 +51,7 @@ export default function AI({ context }) {
         .filter(m => m.content && m.content !== "...")
       history.push({ role: "user", content: msg })
 
-      const data = await import("../services/api").then(api => api.fetchAIChat(history, CLAUDE_SYSTEM))
+      const data = await fetchAIChat(history, CLAUDE_SYSTEM)
       const reply = data.reply || "Sorry, I couldn\'t get a response. Please try again."
       setMessages(m => [...m.filter(x => !x.typing), { role: "ai", text: reply, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }])
     } catch (e) {
