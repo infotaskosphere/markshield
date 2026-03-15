@@ -176,9 +176,26 @@ def login(username: str, password: str, max_attempts: int = 3) -> dict:
             cap_url = cap_img["src"] if cap_img else None
 
             if cap_url:
-                if cap_url.startswith("/"):
-                    cap_url = "https://ipindiaonline.gov.in" + cap_url
-                img_resp  = s.get(cap_url, timeout=15, verify=True)
+                # Handle all relative URL formats
+                if cap_url.startswith("http"):
+                    full_url = cap_url
+                elif cap_url.startswith("//"):
+                    full_url = "https:" + cap_url
+                elif cap_url.startswith("/"):
+                    full_url = "https://ipindiaonline.gov.in" + cap_url
+                elif cap_url.startswith("../"):
+                    # e.g. ../CaptchaGenerator/captcha.aspx → build from base
+                    full_url = "https://ipindiaonline.gov.in/trademarkefiling/user/" + cap_url
+                    # Resolve ../ properly
+                    import urllib.parse
+                    full_url = urllib.parse.urljoin(
+                        "https://ipindiaonline.gov.in/trademarkefiling/user/frmLoginNew.aspx",
+                        cap_url
+                    )
+                else:
+                    full_url = "https://ipindiaonline.gov.in/trademarkefiling/user/" + cap_url
+                log.info(f"Captcha URL: {cap_url} → {full_url}")
+                img_resp  = s.get(full_url, timeout=15, verify=True)
                 img_bytes = img_resp.content
             else:
                 # Try direct captcha URL
