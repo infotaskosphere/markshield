@@ -40,35 +40,40 @@ export default function TMASetup({ currentUser, onComplete, onSkip }) {
   const [autoSolved,    setAutoSolved]    = useState(false)
   const [solveMethod,   setSolveMethod]   = useState("")
 
-  const loadCaptcha = async () => {
+  // silent=true → used by auto-load on step entry; never shows error to user
+  const loadCaptcha = async (silent = false) => {
     setCaptchaLoading(true)
     setCaptchaImg("")
     setCaptchaInput("")
     setAutoSolved(false)
     setSolveMethod("")
+    if (!silent) setError("")   // only clear error on manual refresh
     try {
       const res = await fetchCaptcha()
       if (res?.success && res.captcha) {
         setCaptchaImg(res.captcha)
+        if (!silent) setError("")   // clear any previous error on success
         if (res.auto_solved && res.solved_text) {
-          // OCR / ML solved it automatically — pre-fill the field
           setCaptchaInput(res.solved_text)
           setAutoSolved(true)
           setSolveMethod(res.solve_method || "auto")
         }
-      } else {
-        setError("Could not load CAPTCHA — " + (res?.message || "please try again."))
+      } else if (!silent) {
+        // Only show error if user explicitly clicked Refresh
+        setError("Could not load CAPTCHA — backend may still be waking up. Try again in 30s.")
       }
     } catch(_e) {
-      setError("Could not load CAPTCHA. Check your backend connection.")
+      if (!silent) {
+        setError("Could not load CAPTCHA. Backend may be waking up — wait 30s and click Refresh.")
+      }
     }
     setCaptchaLoading(false)
   }
 
-  // Must be after loadCaptcha is defined
+  // Auto-load silently when step 3 opens — no error shown on failure
   useEffect(() => {
     if (step === 3 && !captchaImg) {
-      loadCaptcha()
+      loadCaptcha(true)   // silent=true: backend sleeping → no scary error
     }
   }, [step])
 
@@ -307,14 +312,16 @@ export default function TMASetup({ currentUser, onComplete, onSkip }) {
                 {captchaLoading ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#3d4f78", fontSize: 12 }}>
                     <div style={{ width: 20, height: 20, border: "2px solid #f0c842", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
-                    Loading CAPTCHA from IP India…
+                    <span>Connecting to IP India<span style={{ animation: "pulse 1.2s infinite" }}>…</span></span>
                   </div>
                 ) : captchaImg ? (
                   <img src={`data:image/png;base64,${captchaImg}`} alt="CAPTCHA"
                     style={{ maxHeight: 60, borderRadius: 6, filter: "contrast(1.2) brightness(1.1)", imageRendering: "pixelated" }} />
                 ) : (
-                  <div style={{ color: "#3d4f78", fontSize: 12, textAlign: "center" }}>
-                    Click <span style={{ color: "#f0c842" }}>🔁 Refresh</span> to load CAPTCHA
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#3d4f78", fontSize: 12, textAlign: "center" }}>
+                    <span style={{ fontSize: 22 }}>🔒</span>
+                    <span>Enter your credentials above,<br/>then click <b style={{ color: "#f0c842" }}>🔁 Refresh</b> to load CAPTCHA</span>
+                    <span style={{ fontSize: 10.5, color: "#1e2d50" }}>Backend may take ~30s to wake up on first use</span>
                   </div>
                 )}
               </div>
