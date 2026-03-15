@@ -408,3 +408,6 @@ def fetch_with_session(app_no: str) -> dict:
     except Exception as e:
         log.error(f"fetch_with_session: {e}")
         return {}
+
+# Backward compatibility alias
+send_otp = send_otp_atomic
