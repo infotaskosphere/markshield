@@ -86,6 +86,13 @@ def verify_tma():
     if not attorney_name and items:
         attorney_name = items[0].get("agent", "")
 
+    # Register attorney for nightly sync immediately after verification
+    try:
+        from sync_scheduler import register_tma_for_sync
+        register_tma_for_sync(tma_code, attorney_name)
+    except Exception as e:
+        pass  # Don't fail verification if scheduler isn't available
+
     return jsonify({
         "success":       True,
         "tma_code":      tma_code,
