@@ -31,6 +31,7 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
   const [fetchProgress, setFetchProgress] = useState(0)
   const [tmaData, setTmaData] = useState(null)
   const [fetching, setFetching] = useState(false)
+  const [wakeMsg,  setWakeMsg]  = useState("")   // Render cold-start message
   const [notifLeadTime, setNotifLeadTime] = useState("3")
 
   const fp = (k, v) => setProfile(p => ({ ...p, [k]: v }))
@@ -57,16 +58,32 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
     const addLog = (t, m) =>
       setFetchLog(prev => [...prev, { t, m: m.replace("{NAME}", profile.fullName).replace("{CITY}", profile.city).replace("{STATE}", profile.state), ts: new Date().toLocaleTimeString() }])
 
-    // Step 1 — Check if backend is reachable at all
-    const backendUp = await checkBackend()
+    // Step 1 — Check if backend is reachable (with Render cold-start retry)
+    addLog("info", "⏳ Waking up backend server (Render free tier may take ~30s)…")
+    setFetchProgress(5)
+
+    const backendUp = await checkBackend((attempt, max) => {
+      const msgs = [
+        "Still waking up… Render free tier takes ~30-60s on first request.",
+        "Almost there… backend is starting up.",
+        "One more moment… backend is nearly ready.",
+      ]
+      setWakeMsg(msgs[attempt - 1] || "Still connecting…")
+      addLog("warn", `🔄 Retry ${attempt}/${max} — backend is warming up, please wait…`)
+      setFetchProgress(5 + attempt * 8)
+    })
+    setWakeMsg("")
+
     if (!backendUp) {
-      addLog("err", "❌ Backend offline — cannot reach IP India.")
-      addLog("warn", "Fix: Deploy your backend on Render or run: cd backend && python app.py")
+      addLog("err", "❌ Backend unreachable after multiple attempts.")
+      addLog("warn", "Check your Render dashboard — the backend service may be paused or crashed.")
+      addLog("warn", "Or run locally:  cd backend && python app.py")
       setFetchProgress(0)
       setFetching(false)
-      setError("Backend is offline. Please start the backend service first.")
+      setError("Cannot reach backend. Check your Render service or run the backend locally.")
       return
     }
+    addLog("ok", "✅ Backend is online — connected successfully.")
 
     // Step 2 — Show prefix logs while making the real API call
     for (const entry of LOG_PREFIX) {
@@ -222,6 +239,12 @@ export default function TMASetup({ currentUser, onComplete, onSkip, gcalConnecte
             <div className="auth-title" style={{ fontSize: 20 }}>Connect IP India eFiling</div>
             <div className="auth-sub">Enter your IP India eFiling portal credentials to auto-import your trademark portfolio. This is optional — you can add trademarks manually later.</div>
             {error && <div className="auth-error">{error}</div>}
+            {wakeMsg && !error && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(201,146,10,.08)", border: "1px solid rgba(201,146,10,.22)", borderRadius: 9, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: "#f0c842" }}>
+                <div style={{ width: 14, height: 14, border: "2px solid #f0c842", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .8s linear infinite", flexShrink: 0 }} />
+                {wakeMsg}
+              </div>
+            )}
 
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>eFiling Username / TMA Code</label>
