@@ -37,12 +37,6 @@ export default function TMASetup({ currentUser, onComplete, onSkip }) {
   const fp = (k, v) => setProfile(p => ({ ...p, [k]: v }))
 
   // Auto-load captcha when user reaches step 3
-  useEffect(() => {
-    if (step === 3 && !captchaImg) {
-      loadCaptcha()
-    }
-  }, [step])
-
   const [autoSolved,    setAutoSolved]    = useState(false)
   const [solveMethod,   setSolveMethod]   = useState("")
 
@@ -65,11 +59,18 @@ export default function TMASetup({ currentUser, onComplete, onSkip }) {
       } else {
         setError("Could not load CAPTCHA — " + (res?.message || "please try again."))
       }
-    } catch {
+    } catch(_e) {
       setError("Could not load CAPTCHA. Check your backend connection.")
     }
     setCaptchaLoading(false)
   }
+
+  // Must be after loadCaptcha is defined
+  useEffect(() => {
+    if (step === 3 && !captchaImg) {
+      loadCaptcha()
+    }
+  }, [step])
 
   const goToStep3 = () => {
     setError("")
