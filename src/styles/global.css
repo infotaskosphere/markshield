@@ -92,11 +92,12 @@ body::before {
   overflow: hidden;
 }
 .logo-area {
-  padding: 20px 18px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 60px;
 }
 .logo-mark {
   width: 36px;
