@@ -17,3 +17,6 @@ Pillow>=10.0.0
 
 # ── Scheduler ────────────────────────────────────────────────────────────────
 apscheduler>=3.10.0
+
+# CAPTCHA solver for eFiling login
+ddddocr>=1.4.11
