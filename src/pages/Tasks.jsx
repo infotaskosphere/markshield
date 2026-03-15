@@ -11,7 +11,7 @@ export default function Tasks() {
   const [form, setForm] = useState({ name: "", col: "To Do", prio: "medium", due: "", assignee: "" })
 
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(tasks)) } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(tasks)) } catch(_e) {}
   }, [tasks])
 
   const addTask = () => {
