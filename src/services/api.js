@@ -183,3 +183,11 @@ export function fetchQueueList(opts) {
 export function fetchPendingReplies() {
   return apiFetch("/queue-list/pending-replies")
 }
+
+// ── eStatus OTP Session ───────────────────────────────────────────────────────
+export function fetchEstatusStatus()          { return apiFetch("/estatus/status") }
+export function fetchEstatusCaptcha(email, mobile) {
+  return apiFetch(`/estatus/captcha?email=${encodeURIComponent(email||"")}&mobile=${encodeURIComponent(mobile||"")}`)
+}
+export function sendEstatusOtp(body)          { return apiFetch("/estatus/send-otp", { method:"POST", body:JSON.stringify(body) }) }
+export function verifyEstatusOtp(body)        { return apiFetch("/estatus/verify-otp", { method:"POST", body:JSON.stringify(body) }) }
