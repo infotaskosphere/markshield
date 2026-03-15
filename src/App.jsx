@@ -159,7 +159,11 @@ export default function App() {
         onComplete={handleSetupComplete}
         onSkip={requiresEFiling(currentUser) ? null : handleSkipToApp}
         rerunMode={!!(agentProfile?.fullName)}
-        existingProfile={agentProfile}
+        existingProfile={{
+          ...agentProfile,
+          // Pre-fill TMA code from account registration if not already set
+          barNo: agentProfile?.barNo || agentProfile?.portalUser || currentUser?.tmCode || "",
+        }}
         mustConnect={requiresEFiling(currentUser)}
       />
     )
